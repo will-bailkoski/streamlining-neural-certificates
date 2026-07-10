@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "masters-thesis"
+version = "0.1.0"
+description = "Masters thesis verification framework"
+requires-python = ">=3.8"
+dependencies = [
+    "numpy",
+    "jax",
+    "jaxlib",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]

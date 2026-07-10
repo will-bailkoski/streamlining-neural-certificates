@@ -1,0 +1,13 @@
+{
+  "env": "linstoch2D",
+  "cert_structure": "bounded_pwl",
+  "hidden_layers": "4,4",
+  "verified_by": "mab",
+  "continuous_noise": true,
+  "train_epsilon": 0.02,
+  "mab_verify_epsilon": 0.001,
+  "lip_v_lipbab": 1.0582765977832629,
+  "lip_f": 0.6603277807866852,
+  "reward_lipschitz": 1.7570860350559683,
+  "note": "full [-5,5]^2, 13 CEGIS rounds"
+}
