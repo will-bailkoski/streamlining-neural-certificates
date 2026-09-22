@@ -33,7 +33,7 @@ from src.certificates.structures import get_spec
 from src.verifiers.drift import make_drift
 from src.refuters.base import get_refuter
 import src.refuters  # noqa: F401  (register refuters)
-from src.results.recorder import load_params
+from src.results.params import load_params
 from experiments.common.runner import parse_extras
 from src.results.run_dir import Run
 

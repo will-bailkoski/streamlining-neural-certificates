@@ -9,7 +9,7 @@ Rules:
   * smt / milp : need a piecewise-linear cert (`spec.symbolic_friendly`) AND
                  symbolically-encodable dynamics (`env.symbolic_encodable`).
   * lirpa      : needs `env.lirpa_drift_module` (all current envs implement it).
-  * sampling / montecarlo / mab : unrestricted.
+  * montecarlo / mab : unrestricted.
   * any refuter: unrestricted (acts on an objective, not the env directly).
 """
 
@@ -21,8 +21,8 @@ from src.verifiers.lirpa import LIRPA_METHODS
 
 SYMBOLIC = {"smt", "milp"}
 # autoLiRPA exposes one engine per bound method (crown, ibp, ...); all need only
-# env.lirpa_drift_module, so they are unrestricted like the other sampling engines.
-UNRESTRICTED_VERIFIERS = {"sampling", "montecarlo", "mab", "lirpa", *LIRPA_METHODS}
+# env.lirpa_drift_module, so they are unrestricted like the sampling engines.
+UNRESTRICTED_VERIFIERS = {"montecarlo", "mab", "lirpa", *LIRPA_METHODS}
 
 
 def is_verifier(backend: str) -> bool:

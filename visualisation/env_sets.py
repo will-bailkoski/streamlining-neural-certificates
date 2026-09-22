@@ -43,7 +43,7 @@ from src.benchmarks.utils import make_env, DIRECTORY
 from src.plotting.systems import PUB_RC, visualise_env, _phase_portrait, _rollouts, _grid
 from src.plotting.utils import add_domain_border, add_equilibrium
 from src.certificates.structures import get_spec
-from src.results.recorder import load_params
+from src.results.params import load_params
 
 DOC_FIGURES = Path(__file__).resolve().parents[1] / "doc" / "Figures"
 

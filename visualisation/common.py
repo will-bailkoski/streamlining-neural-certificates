@@ -185,7 +185,7 @@ def load_cert(run_dir: Path):
     """(env, spec, params, manifest_args) for the certificate stored in a run dir."""
     from src.benchmarks.utils import make_env
     from src.certificates.structures import get_spec
-    from src.results.recorder import load_params
+    from src.results.params import load_params
 
     args = load_manifest(run_dir).get("args", {})
     env = make_env(args["env"])

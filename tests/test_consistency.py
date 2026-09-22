@@ -183,7 +183,7 @@ def test_montecarlo_no_false_refutation_good_cert():
     assert r.stats["certified_sup_drift"] > 0.0  # sound ceiling exists
 
 
-@pytest.mark.parametrize("engine_name", ["smt", "sampling", "lirpa", "montecarlo"])
+@pytest.mark.parametrize("engine_name", ["smt", "lirpa", "montecarlo"])
 def test_engines_find_genuine_counterexample_bad_cert(engine_name):
     env = make_env("linear2D")
     spec = CERT_DIRECTORY["relu_pwl"]

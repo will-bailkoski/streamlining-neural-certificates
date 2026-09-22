@@ -1,7 +1,7 @@
 """
 The single verifier interface.
 
-Every engine (sampling mesh, SMT, MILP, autoLiRPA) is a callable with the same
+Every engine (SMT, MILP, autoLiRPA, Monte Carlo, MAB) is a callable with the same
 signature and returns the same `VerifierResult`, so an experiment can swap
 engines without touching anything else. Each engine asks exactly one question
 about the SAME drift condition:

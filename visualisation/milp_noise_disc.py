@@ -106,7 +106,7 @@ def _count_by_building(env_name: str, nd: int, seed: int):
     from src.certificates.encoders import encode_gurobi
     from src.verifiers.milp import _successor_bounds
     from visualisation.common import run_dirs, load_manifest
-    from src.results.recorder import load_params
+    from src.results.params import load_params
 
     cert = None
     for d in run_dirs(CERT_CAMPAIGN):

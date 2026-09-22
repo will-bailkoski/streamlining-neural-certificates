@@ -6,7 +6,6 @@ from src.verifiers import drift
 # Importing an engine module registers it in DIRECTORY.
 from src.verifiers import smt  # noqa: F401  (registers "smt")
 from src.verifiers import milp  # noqa: F401  (registers "milp")
-from src.verifiers import sampling  # noqa: F401  (registers "sampling")
 from src.verifiers import lirpa  # noqa: F401  (registers "lirpa")
 from src.verifiers import montecarlo  # noqa: F401  (registers "montecarlo")
 from src.verifiers import mab  # noqa: F401  (registers "mab")

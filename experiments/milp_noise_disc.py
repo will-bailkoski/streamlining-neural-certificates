@@ -51,7 +51,7 @@ from jax import vmap, jit
 
 from src.benchmarks.utils import make_env
 from src.certificates.structures import get_spec
-from src.results.recorder import load_params
+from src.results.params import load_params
 import src.verifiers  # noqa: F401  (register engines)
 from src.verifiers import milp
 

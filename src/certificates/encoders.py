@@ -32,7 +32,7 @@ def encode_z3(spec: CertificateSpec, solver, params, x_vars, name="V", tag=""):
     if not spec.symbolic_friendly:
         raise NotImplementedError(
             f"Certificate '{spec.name}' (hidden={spec.hidden_activation}) is not "
-            f"exactly encodable in Z3; use the sampling or autoLiRPA engine."
+            f"exactly encodable in Z3; use the autoLiRPA, Monte Carlo or MAB engine."
         )
 
     current = list(x_vars)
@@ -102,7 +102,7 @@ def encode_gurobi(
     if not spec.symbolic_friendly:
         raise NotImplementedError(
             f"Certificate '{spec.name}' (hidden={spec.hidden_activation}) is not "
-            f"exactly encodable in Gurobi; use the sampling or autoLiRPA engine."
+            f"exactly encodable in Gurobi; use the autoLiRPA, Monte Carlo or MAB engine."
         )
 
     lo = np.array(input_bounds[0], dtype=float)

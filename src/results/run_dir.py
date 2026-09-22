@@ -6,7 +6,7 @@ One results directory per experiment run, handling every result shape uniformly.
         stats.json      a single stat set
         iterations.csv  a per-iteration series
         figures/<name>.{pdf,png}
-        objects/<name>.npz   networks / artefacts (params, recorder npz layout)
+        objects/<name>.npz   networks / artefacts (params in the src/results/params.py npz layout)
 
 `run_id` is a deterministic slug of the experiment args, so SLURM array tasks
 never collide and a rerun resumes by skipping an already-completed run. Every
@@ -24,7 +24,7 @@ import re
 
 import numpy as np
 
-from src.results.recorder import _params_to_npz, load_params
+from src.results.params import params_to_npz, load_params
 
 # args that locate I/O rather than identify the run — excluded from the slug
 _META_KEYS = {"campaign", "results_dir", "overwrite", "plots", "cert_root", "root"}
@@ -107,7 +107,7 @@ class Run:
     def object(self, name: str, params, meta: dict | None = None) -> None:
         odir = self.dir / "objects"
         odir.mkdir(exist_ok=True)
-        np.savez(odir / f"{name}.npz", **_params_to_npz(params))
+        np.savez(odir / f"{name}.npz", **params_to_npz(params))
         self._manifest["outputs"].setdefault("objects", {})[name] = (meta or {})
         self._write_manifest()
 
@@ -123,7 +123,7 @@ class Run:
         manifest under outputs['invalid'][name]."""
         sdir = self.dir / "objects" / "invalid"
         sdir.mkdir(parents=True, exist_ok=True)
-        np.savez(sdir / f"{name}.npz", **_params_to_npz(params))
+        np.savez(sdir / f"{name}.npz", **params_to_npz(params))
         self._manifest["outputs"].setdefault("invalid", {})[name] = (meta or {})
         self._write_manifest()
 

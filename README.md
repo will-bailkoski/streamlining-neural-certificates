@@ -36,7 +36,7 @@ src/
   verifiers/      sound engines behind one interface + the shared drift functional
   refuters/       black-box maximisers behind one interface
   training/       CEGIS learner
-  results/        run directories, recorder and loader
+  results/        run directories and certificate parameter I/O
   plotting/       shared figure helpers
 experiments/
   common/         shared axes (config.py), SLURM profiles, array launcher
