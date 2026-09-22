@@ -26,9 +26,6 @@ _KINDS = {
                                   "n_counterexamples", "rounds"]),
     "refute_bbob": ("function", ["final_value", "time"]),
     "refute_certs": ("refuter", ["refuter_time", "verifier_time", "speedup"]),
-    "lirpa_bench": ("method", ["time", "total_boxes", "peak_boxes"]),
-    "gpu_check": ("host", ["torch_pass", "jax_pass", "gpu_speedup_torch",
-                           "gpu_speedup_jax", "passed"]),
 }
 
 
@@ -65,44 +62,11 @@ def _summary(csv_path: Path, group_key: str, metrics: list[str]) -> None:
         print(line)
 
 
-def _feasibility_summary(csv_path: Path) -> None:
-    """Per-env frontier: did anything verify, and the easiest config that did."""
-    rows = list(csv.DictReader(open(csv_path, newline="")))
-    if not rows:
-        return
-    groups: dict[str, list[dict]] = {}
-    for r in rows:
-        groups.setdefault(str(r.get("env", "?")), []).append(r)
-
-    def fnum(r, k, default):
-        try:
-            return float(r.get(k))
-        except (TypeError, ValueError):
-            return default
-
-    def neurons(r):
-        return sum(int(x) for x in str(r.get("hidden_layers", "")).split(",") if x.strip().isdigit())
-
-    print("\n  feasibility frontier (verified configs per env):")
-    for env, rs in sorted(groups.items()):
-        ver = [r for r in rs if r.get("verdict") == "verified"]
-        if not ver:
-            print(f"    {env:<14} NONE verified ({len(rs)} tried) — widen epsilon / neurons / caps")
-            continue
-        fastest = min(ver, key=lambda r: fnum(r, "total_time", float("inf")))
-        print(f"    {env:<14} VERIFIED  max_eps={max(fnum(r,'epsilon',0) for r in ver):g}  "
-              f"min_neurons={min(neurons(r) for r in ver)}  "
-              f"min_noise_disc={min(int(fnum(r,'noise_disc',1)) for r in ver)}  "
-              f"fastest={fnum(fastest,'total_time',0):.1f}s "
-              f"(eps={fastest.get('epsilon')}, hidden={fastest.get('hidden_layers')}, "
-              f"disc={fastest.get('noise_disc')})")
-
-
 def main():
     ap = argparse.ArgumentParser(description="Compile a campaign -> compiled.csv + summary")
     ap.add_argument("campaign_dir", help="results/<campaign_title>/<tag>/ (holds runs/)")
     ap.add_argument("--iters", action="store_true",
-                    help="one row per iterations.csv entry (auto for lirpa_bench)")
+                    help="one row per iterations.csv entry")
     a = ap.parse_args()
 
     cdir = Path(a.campaign_dir)
@@ -111,14 +75,11 @@ def main():
 
     title = cdir.parent.name  # results/<title>/<tag> -> <title>
     group_key, metrics = _kind(title)
-    iters = a.iters or title.startswith("lirpa_bench")
+    iters = a.iters
 
     out = compile_campaign(cdir, iters=iters)
     if out.exists():
-        if title.startswith("feasibility"):
-            _feasibility_summary(out)
-        else:
-            _summary(out, group_key, metrics)
+        _summary(out, group_key, metrics)
 
 
 if __name__ == "__main__":

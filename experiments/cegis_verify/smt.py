@@ -4,11 +4,10 @@ Experiment 1 — CEGIS verifier-only timing, SMT (Z3) engine.
 Sweeps the shared envs x seeds (experiments.common.config) against the SMT engine
 as the loop closer. noise_disc is grouped per env family (config.noise_groups):
 the discrete-noise linear* envs ignore it entirely, so they get a single value.
-Prior evidence (results/verify_matrix): Z3 timed out on EVERYTHING at 120s, even
-discrete-noise 2D — the bigtest crank to 600s is expected to stay a negative
-result, but makes it an honest one.
+Each Z3 call has a one-hour budget (Chapter 5: Z3 returns unknown or exhausts it
+on essentially every trained-network round).
 
-    python -m experiments.cegis_verify.smt --tag bigtest
+    python -m experiments.cegis_verify.smt --tag final
     python -m experiments.cegis_verify.smt --local 2
 """
 
@@ -20,7 +19,7 @@ from experiments.common.slurm import SLURM_CPU_LONG
 CAMPAIGN_TITLE = "cegis_verify_smt"  # preset, not editable
 
 ENGINE_HP = dict(
-    timeout_ms=600_000,   # Z3 per-call cap: 120s decided nothing, give it 10 min
+    timeout_ms=3_600_000,   # Z3 per-call cap (3600s)
 )
 
 # 3D/4D cells grow as disc^dim (512 at disc=8 on 3D) — Z3 already times out at

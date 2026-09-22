@@ -61,10 +61,10 @@ def make_figure(rows: list[dict]):
         ax1.bar(x, [hit[r] for r in refs], 0.62,
                 color=[REFUTER_COLOR[r] for r in refs])
         for xi, r in zip(x, refs):
-            ax1.text(xi, hit[r] + 1.5, f"{hit[r]:.0f}\\%", ha="center",
+            ax1.text(xi, hit[r] + 1.5, f"{int(hit[r])}%", ha="center",
                      va="bottom", fontsize=8.5)
         ax1.set_xticks(x, refs, rotation=20, ha="right")
-        ax1.set_ylabel("faux certs refuted (\\%)")
+        ax1.set_ylabel("faux certs refuted (%)")
         ax1.set_ylim(0, 108)
         ax1.set_title("reliability", fontsize=11)
 
@@ -85,9 +85,9 @@ def make_figure(rows: list[dict]):
         for ax in (ax1, ax2):
             for s in ("top", "right"):
                 ax.spines[s].set_visible(False)
-        total = sum(ncerts.values())
+        n_certs = len({r.get("cert_id") for r in rows})
         fig.suptitle(f"Refuting faux certificates: six refuters vs the sound "
-                     f"verifier ({total} replays)", fontsize=13)
+                     f"verifier ({n_certs} faux certificates)", fontsize=13)
     return fig
 
 

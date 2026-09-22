@@ -204,11 +204,8 @@ def main():
                                 allow_abbrev=False)
     p.add_argument("--env", required=True)
     p.add_argument("--verify_env", default=None,
-                   help="env variant the VERIFIER checks (default: --env). Same "
-                        "dynamics/domain with a fatter equilibrium (e.g. "
-                        "linstoch2D_eqm3) excludes the thin post-training rim "
-                        "margin from the check — the certified claim weakens to "
-                        "stability-to-the-fatter-ball (see results/eq_noise_probe)")
+                   help="env variant the VERIFIER checks (default: --env), e.g. "
+                        "the same dynamics/domain with a larger equilibrium")
     p.add_argument("--engine", default="smt", help="sound verifier that closes the loop")
     p.add_argument("--refuter", default="none", help="refuter to pre-screen each round, or 'none'")
     p.add_argument("--seed", type=int, default=0)

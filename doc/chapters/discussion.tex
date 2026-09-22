@@ -1,0 +1,272 @@
+% !TEX root = ../MasterThesis.tex
+\chapter{Streamlining CEGIS}
+\label{chap:streamlining}
+
+The preceding chapters characterised the two halves of certificate synthesis in
+isolation: Chapter~\ref{chap:verification} the sound verifiers, and
+Chapter~\ref{chap:refutation} the refuters as cheap counterexample search. This
+chapter assembles them into the full CEGIS loop and asks: does placing a refuter in front of the sound verifier make
+end-to-end certificate synthesis faster?
+
+\section{Experimental Setup}
+
+We run the complete CEGIS pipeline on three benchmark systems chosen to span
+the difficulty spectrum of Chapter~\ref{chap:benchmarks}: the 2D $\mathrm{LinSwitch}$ (Section~\ref{sec:bench-linear}), the $\mathrm{DoubleWell}$ gradient
+flow (Section~\ref{sec:bench-doublewell}), and
+the LQR-controlled $\mathrm{Pendulum}$ (Section~\ref{sec:bench-pendulum-lqr}),
+whose transcendental dynamics make bound propagation expensive. The fourth
+benchmark, $\mathrm{LinStoch}$, is absent by necessity rather than choice:
+Chapter~\ref{chap:verification} found it certifiable only by the exact MILP
+route, and the LiRPA engines this campaign compares were unable to verify it,
+so no verifier-only baseline exists to improve upon.
+
+The learner trains the $\relu$ certificate architecture used throughout (two
+hidden layers of eight units) to a training margin of $0.02$, and the loop
+terminates when a sound verifier certifies the drift condition to
+$\varepsilon = 10^{-3}$. Any counterexample found, whether by refuter or
+verifier, is added to the training set and the candidate is retrained.
+
+For our verifiers we take the three LiRPA-family engines of
+Chapter~\ref{chap:verification}, the only family that certifies all three
+systems. All three run inside the same branch-and-bound refinement with longest-edge region splitting. Against each engine we compare three loop configurations, which differ only in
+how counterexamples are sought:
+
+\begin{description}
+\item[Verifier-only.] The baseline: the sound verifier runs every round, both
+  finding counterexamples and, eventually, certifying.
+\item[Random pre-screen.] Each round, random search
+  (Section~\ref{sec:bbob}) hunts for a counterexample first; only when it
+  finds nothing do we fall back on the sound verifier. Random is the
+  uninformed extreme: essentially free, but blind.
+\item[Whale pre-screen.] The same arrangement with the whale optimiser (WOA)
+  at its BBOB-tuned hyperparameters (Table~\ref{tab:bbob-best}), selected because it dominated the fast-and-accurate
+  frontier of the refuter benchmark.
+\end{description}
+
+Refuters run with the same budget as in Chapter~\ref{chap:refutation} ($8192$
+evaluations per search, $16$ Monte-Carlo samples per point). Each
+configuration is repeated over five seeds. We record the wall-clock time to a
+verified certificate, the number of CEGIS rounds, the number of sound-verifier
+calls, and the number of \emph{escapes} --- counterexamples the refuter
+missed that the sound verifier subsequently found.
+
+\paragraph{Compute environment.} Campaigns throughout the thesis were
+dispatched as job arrays to a Slurm compute cluster; the sampling verifiers
+(MC, MAB) and the three LiRPA engines benefit from GPU acceleration and ran on
+GPU nodes. The MILP experiments are the exception, running locally on a
+desktop CPU, as the Gurobi licence (version 13.0.1, via \texttt{gurobipy})
+could not be reached from the cluster's compute nodes. All code (the
+unified verifier framework, the refuters, the experiment drivers, and every
+figure script) is available at
+\url{https://github.com/will-bailkoski/streamlining-neural-certificates}.
+
+\section{Results and Discussion}
+
+%Table~\ref{tab:cegis-speedup} summarises the campaign.
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lllrrrrr}
+\hline
+Engine & System & Strategy & $n$ & Time (s) & Rounds & Calls & Speed-up \\
+\hline
+IBP & $\mathrm{LinSwitch}$     & verifier-only & 5 & $155.5$ & $43.8$ & $43.8$ & --- \\
+    &                 & random        & 5 & $58.9$  & $18.0$ & $2.6$  & $2.64\times$ \\
+    &                 & whale         & 5 & $39.8$  & $10.8$ & $1.0$  & $3.91\times$ \\
+    & $\mathrm{DoubleWell}$     & verifier-only & 3 & $14.6$  & $1.3$  & $1.3$  & --- \\
+    &                 & random        & 3 & $14.1$  & $1.7$  & $1.0$  & $1.03\times$ \\
+    &                 & whale         & 5 & $18.4$  & $2.2$  & $1.0$  & $1.04\times$ \\
+    & $\mathrm{Pendulum}$  & verifier-only & 1 & $55.0$  & $6.0$  & $6.0$  & --- \\
+    &                 & random        & 2 & $33.7$  & $7.5$  & $1.0$  & $1.76\times$ \\
+    &                 & whale         & 1 & $57.4$  & $10.0$ & $1.0$  & --- \\
+\hline
+CROWN & $\mathrm{LinSwitch}$     & verifier-only & 5 & $44.6$  & $11.8$ & $11.8$ & --- \\
+      &                 & random        & 5 & $52.2$  & $15.4$ & $2.0$  & $0.85\times$ \\
+      &                 & whale         & 5 & $38.5$  & $10.8$ & $1.0$  & $1.16\times$ \\
+      & $\mathrm{DoubleWell}$     & verifier-only & 3 & $41.7$  & $1.7$  & $1.7$  & --- \\
+      &                 & random        & 5 & $31.3$  & $2.2$  & $1.0$  & $1.48\times$ \\
+      &                 & whale         & 5 & $32.0$  & $2.2$  & $1.0$  & $1.51\times$ \\
+      & $\mathrm{Pendulum}$  & verifier-only & 3 & $203.1$ & $7.0$  & $7.0$  & --- \\
+      &                 & random        & 4 & $57.8$  & $6.8$  & $1.0$  & $2.74\times$ \\
+      &                 & whale         & 4 & $66.8$  & $8.5$  & $1.0$  & $3.19\times$ \\
+\hline
+$\alpha$-CROWN & $\mathrm{LinSwitch}$  & verifier-only & 5 & $935.0$  & $69.2$ & $69.2$ & --- \\
+               &              & random        & 5 & $91.8$   & $15.4$ & $2.0$  & $10.19\times$ \\
+               &              & whale         & 5 & $59.6$   & $10.8$ & $1.0$  & $15.70\times$ \\
+               & $\mathrm{DoubleWell}$  & \multicolumn{6}{c}{\emph{(did not complete)}} \\
+               & $\mathrm{Pendulum}$ & verifier-only & 4 & $9559.4$ & $8.0$  & $8.0$  & --- \\
+               &              & random        & 4 & $1363.0$ & $6.8$  & $1.0$  & $5.97\times$ \\
+               &              & whale         & 4 & $1331.5$ & $8.8$  & $1.0$  & $6.81\times$ \\
+\hline
+\end{tabular}
+\caption{End-to-end CEGIS performance per engine, system and counterexample
+strategy: mean wall-clock time, CEGIS rounds and sound-verifier calls over the
+$n$ completed seeds. Speed-ups are ratios of seed-matched means against the
+verifier-only baseline. $39$ of the $135$ configured arms did not complete
+(hence the uneven $n$); in particular the $\alpha$-CROWN $\mathrm{DoubleWell}$ arms are
+absent, and the IBP $\mathrm{Pendulum}$ cells are single-seed and admit no matched
+comparison. The IBP $\mathrm{LinSwitch}$ baseline mean is inflated by a single runaway seed
+(see text).}
+\label{tab:cegis-speedup}
+\end{table}
+
+\textbf{Wall time improvements.} Stripping out the repeated sound calls changes
+what a run spends its time on, not merely how long it takes. Averaged over the
+three engines, sound verification is the largest single cost of a verifier-only
+run --- a mean $62\%$ of its wall time, against $38\%$ for training and loop
+overhead. A refuter pre-screen inverts this balance: verification falls to a mean
+$47\%$ of wall time while training-and-overhead rises to $48\%$ and becomes the
+dominant term, and the refuter's own search accounts for only about $5\%$ --- a
+second or two per run at this budget. Once the refuter absorbs the counterexample
+search, in other words, CEGIS is no longer verification-bound but
+\emph{training}-bound.
+
+How cleanly this holds depends on the engine's per-call cost. Under CROWN it is a
+clean inversion --- verification drops from $57\%$ of a baseline run to $46\%$ and
+retraining overtakes it at $49\%$. Under IBP the loop is training-bound from the
+start: IBP's calls are so cheap that training is already $58\%$ of the
+verifier-only run and merely edges up to $62\%$ with a refuter, so here the
+refuter's payoff is rounds saved rather than call-time skipped. At the far end,
+$\alpha$-CROWN's single sound call is costly enough that verification stays
+dominant even after the repeats are gone --- still $68\%$ of a refuter run on
+average, and $98\%$ on $\mathrm{Pendulum}$. Verification ceases to dominate exactly when a single sound
+call is cheap relative to training, which is the regime the pre-screen is built to
+create.
+
+\textbf{Difficulty scaling.} On $\mathrm{Pendulum}$ under CROWN, where a single sound verification
+costs $22$--$34$\,s, the refuter arms synthesise a certificate $2.7$--$3.2$
+times faster than the baseline; on $\mathrm{LinSwitch}$ under $\alpha$-CROWN,
+whose slope optimisation raises the per-call cost to $9$--$18$\,s, the speed-up
+reaches $10.2\times$ for random and $15.7\times$ for whale --- the largest in
+the campaign, because the verifier-only baseline there spirals to $69$ rounds
+($935$\,s) that the refuter collapses to about $11$. Conversely, on the same
+$\mathrm{LinSwitch}$ under plain CROWN a call costs well under a second, so there is
+nothing worth saving: random search actually \emph{slows the loop down}
+($0.85\times$), and whale's modest $1.16\times$ gain comes from needing fewer
+rounds rather than from cheaper rounds. $\mathrm{DoubleWell}$ sits in between: most
+seeds certify in one or two rounds, leaving little verification to skip. The
+extreme case is $\mathrm{Pendulum}$ under $\alpha$-CROWN, where a single sound call
+costs some $20$ \emph{minutes}: the verifier-only baseline makes six to eleven
+of them --- one-and-a-half to three-and-a-half \emph{hours} per run --- while
+each refuter arm makes exactly one and completes in around $22$ minutes, a
+$6.8\times$ speed-up. At this price the pre-screen is the difference between an
+overnight campaign and a coffee break.
+
+The mechanism is visible in the calls column of Table~\ref{tab:cegis-speedup}.
+The baseline pays one sound verification per round (up to seventy on the
+$\alpha$-CROWN $\mathrm{LinSwitch}$), whereas the refuter arms finish with a handful
+of sound calls at most, and whale with exactly one: the final, unavoidable
+certification call. The refuters' own cost is negligible at this budget, a
+second or two per run in total. The saving is therefore the per-call
+verification cost multiplied by the rounds avoided, which is why the speed-up
+tracks the engine and system so closely: skipping a dozen sub-second calls buys
+nothing, while skipping several twenty-minute calls buys hours.
+
+\textbf{Counterexample leakage.} In $12$ of $33$
+completed random runs the refuter declared a candidate clean that the sound
+verifier then refuted --- $18$ escaped counterexamples in all, each costing an
+extra expensive verification round. Whale escaped nothing: in all $34$ of its
+completed runs the first certificate it passed to the verifier was accepted,
+so every whale run ended with exactly one sound call. Counterexample
+\emph{quality} matters too, not just detection: on $\mathrm{LinSwitch}$ random
+needed $15.4$ rounds on average against the baseline's $11.8$ while whale needed $10.8$,
+matching the verifier-quality counterexamples of the baseline.
+
+A reassuring consistency check: whale's round counts are identical, seed for
+seed, under all three engines ($\mathrm{LinSwitch}$: $11,8,9,10,16$) --- because it
+never lets the sound verifier find a counterexample, its loop trajectory
+decouples from the verification engine entirely, whose only remaining role is
+to price the final call. Random's trajectories match across CROWN and
+$\alpha$-CROWN ($15.4$ rounds) but drift under IBP ($18.0$): each escape hands
+control back to the engine, and a loose engine returns different, weaker
+counterexamples.
+
+\textbf{Engine choice.} Per-call costs span more than three orders of magnitude across the
+campaign: IBP from $0.2$\,s ($\mathrm{LinSwitch}$) to $11$\,s ($\mathrm{DoubleWell}$), CROWN from
+$0.5$\,s to $34$\,s, and $\alpha$-CROWN from $9$\,s to some $1200$\,s on
+$\mathrm{Pendulum}$. Reaching for the cheapest engine instead of a refuter is a false
+economy, however. IBP's loose enclosures produce weak counterexamples, and on
+one $\mathrm{LinSwitch}$ seed the verifier-only loop spiralled: $179$ rounds, $633$\,s,
+and a final certificate with a Lipschitz constant of $58$ against the $3$--$7$
+typical of the other engines. Notably, the pre-screen \emph{rescues} this
+failure --- fed on refuter counterexamples instead of IBP's own, the same seed
+certifies in $16$ rounds ($56$\,s, $11\times$ faster) under whale. Here the
+gain is not skipped call-time (IBP's calls are nearly free) but avoided rounds:
+the refuter pays off through two distinct channels, skipping expensive sound
+calls \emph{and} supplying better counterexamples than a loose verifier can
+produce. A tight engine guarded by a refuter pre-screen obtains tight bounds
+while paying the expensive call only once.
+
+\section{Conclusions}
+
+Sound verification is the price of a guarantee, but it need not be paid every
+round. A cheap refuter in front of the verifier reduces CEGIS to a sequence
+of fast search-and-retrain rounds followed by a single certification call,
+and the resulting speed-up scales with how expensive that call is: from
+nothing when verification is sub-second, to $3$--$4\times$ when calls cost
+tens of seconds, to $15.7\times$ on the $\alpha$-CROWN $\mathrm{LinSwitch}$ runaway and a
+practical necessity on the $\alpha$-CROWN $\mathrm{Pendulum}$, where $20$-minute sound
+calls turn a multi-hour verifier-only run into a $22$-minute one. The benefit
+flows through two channels: skipping
+expensive sound calls, and feeding the learner better counterexamples than a
+loose verifier can produce --- the latter rescuing IBP from a $179$-round
+runaway. The quality of the refuter governs how much of this is realised: an
+uninformed search leaks counterexamples back to the verifier and pads the
+loop with uninformative rounds, while the tuned whale optimiser matched the
+verifier's own counterexample quality at a fraction of its cost, never
+leaked, and made the loop's trajectory independent of the engine beneath it.
+The practical recipe for streamlining CEGIS is therefore to pair the tightest
+verifier one can afford with a well-tuned refuter pre-screen, rather than to
+economise on the verifier itself.
+
+\section{Future Work}
+
+The field offers no shortage of hard problems; we highlight the directions that
+are opened directly by a finding of this thesis.
+
+\paragraph{Nonlinear drift-Lipschitz bounds.} Both Lipschitz contributions of
+Chapter~\ref{sec:lipschitz} lean on the linearity that keeps the drift
+piecewise linear, but the principle behind them --- bound the object the
+verifier consumes, rather than composing bounds on its factors --- does not.
+Running bound propagation over the composed graph $\cert \circ f - \cert$
+would extend the tight drift constant, and its per-axis refinement, to
+nonlinear dynamics.
+
+\paragraph{Closing the $\mathrm{LinStoch}$ gap.} The capability boundary of
+Chapter~\ref{chap:verification} leaves exactly one system uncertified by any
+relaxation-based engine: $\mathrm{LinStoch}$, whose noise-floor equilibrium
+leaves the relaxations too little margin to work with. Diagnosing that
+interaction (for instance by decoupling the equilibrium the learner trains
+against from the one the verifier certifies) is a self-contained problem
+whose solution would make the bound-propagation family genuinely
+suite-spanning.
+
+\paragraph{Rescuing sound sampling.} The sampling verifiers of
+Chapter~\ref{chap:verification} failed on loose inputs rather than broken
+theory: termination stalled on the magnitude of the Lipschitz and statistical
+radii. The anisotropic per-axis constants of Chapter~\ref{sec:lipschitz} plug
+directly into the bandit's splitting rule, and variance-adaptive concentration
+bounds attack the statistical term. Success here would be significant, as it
+would deliver a sound verifier for genuinely black-box dynamics, which no
+other family can offer.
+
+\paragraph{Refuter--verifier co-design.} The pre-screen of this chapter treats
+the refuter and the verifier as strangers who share only a training set. A
+natural next step is to let the refuter's near-violations warm-start the
+verifier's branch-and-bound, seeding splits where the margin is thinnest,
+and to make the fall-back policy adaptive, spending refuter budget in
+proportion to how often it has recently let a counterexample escape.
+
+\paragraph{Broader specifications and certificate classes.} We claimed in
+Chapter~\ref{sec:preliminaries} that our methods extend to safety and
+reach-avoid specifications without essential modification; that claim deserves
+an experiment. Likewise, this thesis used piecewise-linear certificates
+throughout: smooth activations such as $\tanh$ remove the symbolic engines
+from play but remain within reach of bound propagation, and
+Lipschitz-constrained architectures interact directly with the margin budget
+\eqref{eq:budget}. Both would re-draw the capability boundary this thesis
+mapped.
+
+
+\newpage
+

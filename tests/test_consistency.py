@@ -271,25 +271,7 @@ def test_random_construction_is_well_formed(ndims):
 
 
 # ----------------------------------------------------------------------
-# 7. inverted pendulum: torch dynamics == jax dynamics (controller injected
-#    to skip the slow policy-gradient training)
-# ----------------------------------------------------------------------
-def test_pendulum_torch_matches_jax():
-    import torch
-    from src.benchmarks.inverted_pendulum import InvertedPendulumEnv
-
-    ctrl = glorot_init([2, 8, 1], jrn.key(3))
-    env = InvertedPendulumEnv(controller_params=ctrl)
-    xs = np.array([[0.3, 0.2], [-0.4, 0.5], [0.1, -0.6]], dtype=np.float32)
-    u = jax.vmap(env.controller_fn)(jnp.array(xs))
-    jax_next = np.array(env._step_dynamics(jnp.array(xs), u, jnp.zeros((3, 2))))
-    with torch.no_grad():
-        torch_next = env.torch_step_module()(torch.tensor(xs), torch.zeros((3, 2))).numpy()
-    assert np.max(np.abs(jax_next - torch_next)) < 1e-4
-
-
-# ----------------------------------------------------------------------
-# 8. continuous-noise autoLiRPA: the binned drift bound is SOUND (an upper
+# 7. continuous-noise autoLiRPA: the binned drift bound is SOUND (an upper
 #    bound on the true expectation) and tightens (does not loosen) with disc.
 # ----------------------------------------------------------------------
 @pytest.mark.parametrize("disc", [1, 2])
@@ -334,12 +316,12 @@ def test_lirpa_continuous_noise_is_sound(disc):
 
 
 # ----------------------------------------------------------------------
-# 9. New benchmark suite — quadratic-known_V envs are exact supermartingales.
+# 8. New benchmark suite — quadratic-known_V envs are exact supermartingales.
 #    For V(x) = (x-c)^T P x with A^T P A - P = -I, the drift is exactly
 #    -||x-c||^2 + tr(P Sigma), so we can assert soundness analytically (no MC
 #    noise). This also pins the discrete-Lyapunov / noise-floor equilibrium.
 # ----------------------------------------------------------------------
-@pytest.mark.parametrize("env_name", ["linstoch2D", "linstoch3D", "linstoch4D", "thermal"])
+@pytest.mark.parametrize("env_name", ["linstoch2D", "linstoch3D", "linstoch4D"])
 def test_quadratic_known_V_is_supermartingale(env_name):
     env = make_env(env_name)
     P = np.array(env.P)
@@ -352,7 +334,7 @@ def test_quadratic_known_V_is_supermartingale(env_name):
     assert analytic_drift.max() <= 1e-6  # known_V is a supermartingale on domain \ eq
 
 
-@pytest.mark.parametrize("env_name", ["linstoch2D", "thermal"])
+@pytest.mark.parametrize("env_name", ["linstoch2D"])
 def test_quadratic_env_step_matches_assumed_dynamics(env_name):
     # The analytic drift above assumes x' = A x (+ b) + zero-mean noise; verify the
     # jax step realises it by matching a high-sample MC drift at a few states.
@@ -371,10 +353,10 @@ def test_quadratic_env_step_matches_assumed_dynamics(env_name):
         assert abs(mc - analytic) < 5e-2
 
 
-@pytest.mark.parametrize("env_name", ["vanderpol", "pendulum_lqr"])
+@pytest.mark.parametrize("env_name", ["pendulum_lqr"])
 def test_ellipsoid_domain_is_invariant_and_stable(env_name):
-    # These envs use a Lyapunov-ellipsoid domain (a box/ball is not forward
-    # invariant under the non-normal / nonlinear dynamics). Sampling from the
+    # This env uses a Lyapunov-ellipsoid domain (a box/ball is not forward
+    # invariant under the non-normal dynamics). Sampling from the
     # ellipsoid, every trajectory should stay near the domain and converge to the
     # equilibrium — i.e. the verification problem is well posed and a certificate
     # exists.

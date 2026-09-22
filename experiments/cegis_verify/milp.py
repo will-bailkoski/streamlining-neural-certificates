@@ -1,22 +1,18 @@
 """
 Experiment 1 — CEGIS verifier-only timing, MILP (Gurobi big-M) engine.
 
-RUNS LOCALLY (laptop / login node): the cluster's Gurobi token server is only
-reachable from login nodes (see experiments/common/slurm.py), and the WLS
-academic license lives on the laptop (~/gurobi.lic, auto-found). So instead of
-sbatch, run the combos in-process:
+Runs wherever a Gurobi licence is available; in the thesis this was a local
+desktop, so the combos run in-process instead of via sbatch:
 
-    python -m experiments.cegis_verify.milp --local --tag bigtest
-    python -m experiments.cegis_verify.milp --local 2 --tag bigtest   # first 2 only
+    python -m experiments.cegis_verify.milp --local --tag final
+    python -m experiments.cegis_verify.milp --local 2 --tag final   # first 2 only
 
 Runs are resumable (finished run_ids are skipped on relaunch), so the campaign
 can be chipped away at across sessions.
 
-noise_disc grouping: the measured linstoch2D window is nd={4,5,6} verified,
-nd=7 timing out at 600s on a frozen valid cert (results/milp_noise_disc) —
-[4, 6, 8] brackets the window and re-probes 8 at the cranked time_limit as the
-upper edge. 3D/4D cells grow as disc^dim; the window there was measured EMPTY
-(nd<=3 phantom CEs, nd=4 timeout), so those groups carry the honest attempts.
+noise_disc grouping: [4, 6, 8] brackets the linstoch2D verification window
+measured by experiments.milp_noise_disc (phantom counterexamples below b = 4).
+3D/4D cells grow as disc^dim, so those groups carry a few affordable values.
 """
 
 from __future__ import annotations

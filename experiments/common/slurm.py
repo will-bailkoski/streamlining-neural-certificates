@@ -12,21 +12,16 @@ from __future__ import annotations
 # `setup` lines are injected into submit.sbatch verbatim (after the cd into the
 # repo, before the python call). EDIT the venv path below for your cluster.
 #
-# NOTE (this cluster): the Gurobi floating-license token server (login2:41954) is
-# only reachable from LOGIN nodes, not compute nodes — so milp cannot run in a
-# SLURM job here (SLURM runs on compute nodes). Use `smt` (Z3, no license) for
-# symbolic verification instead; it covers every env milp would, just slower. To
-# enable milp on compute nodes you'd need either a Gurobi academic WLS license
-# (cloud-based, no token server — set GRB_LICENSE_FILE to the WLS gurobi.lic) or
-# the admins to open the token-server port from compute nodes.
+# MILP needs a Gurobi licence visible to the process. In the thesis the MILP
+# campaigns ran locally (`--local`) because the licence was not reachable from
+# the cluster's compute nodes; a WLS licence (GRB_LICENSE_FILE) also works in a job.
 #
 # GPU (ibp/crown/alpha-crown): do NOT load a CUDA module — jax[cuda12] and torch
 # bundle their own CUDA/CuDNN; a system CuDNN shadows jax's via LD_LIBRARY_PATH and
 # breaks the GPU backend. Unload it defensively.
-_VENV = "source /nfs/scistore16/tomgrp/wbailkos/masters_thesis/venv/bin/activate"
+_VENV = "source venv/bin/activate"  # relative to the repo root
 _SETUP_CPU = [
     _VENV,
-    # "module load gurobi/952",   # milp only: needs WLS license / token-server access
 ]
 _SETUP_GPU = [
     "module unload cuda 2>/dev/null || true",
@@ -45,7 +40,7 @@ SLURM_CPU = dict(
     time="08:00:00",
     cpus=2,
     throttle=16,  # max array tasks running at once (the %N in array=0-N%N)
-    partition=None,   # set to a CPU partition that can reach the license token server
+    partition=None,   # set to your cluster's CPU partition (None = default)
     account=None,
     qos=None,
     gres=None,
@@ -60,17 +55,15 @@ SLURM_GPU = dict(
     time="04:00:00",
     cpus=4,
     throttle=16,
-    partition="gpu100",  # a GPU partition MUST be named (default partition has no GPUs)
+    partition="gpu",  # EDIT: a GPU partition on your cluster
     account=None,
-    qos=None,             # do NOT set qos here (the cluster forbids specifying it)
+    qos=None,
     gres="gpu:1",
     setup=_SETUP_GPU,
 )
 
-# Long variants for the cranked-budget "bigtest" campaigns: the verify calls are
-# given 5-10x the old per-call budgets, so the arrays need the wall to match
-# (lirpa noise_disc=8 on 2D is 64 V-compositions per bound call; smt gets a
-# 600s Z3 timeout per call). Same resources otherwise.
+# Long variants for the verification campaigns, whose per-call budgets (hours per
+# LiRPA/MAB call, 3600s per Z3 call) need a matching wall. Same resources otherwise.
 SLURM_CPU_LONG = {**SLURM_CPU, "time": "24:00:00"}
 SLURM_GPU_LONG = {**SLURM_GPU, "time": "12:00:00"}
 
@@ -82,17 +75,15 @@ SLURM_GPU_LONG = {**SLURM_GPU, "time": "12:00:00"}
 # runs to millions of live boxes and can take hours.
 #
 # GPU CAVEAT: MAB only uses the GPU if the venv has a CUDA jaxlib
-# (`pip install -U "jax[cuda12]"`). gpu_check found the cluster venv shipping the
-# CPU jaxlib (jax_gpu=0) — with that build MAB still runs correctly on this GPU
-# node's CPU cores (the jit/vmap speedups make CPU viable), just without GPU
-# acceleration. To force CPU (free the GPU) set gres=None + partition=<cpu>.
+# (`pip install -U "jax[cuda12]"`); with the CPU jaxlib it still runs correctly,
+# just without GPU acceleration. To force CPU set gres=None + partition=<cpu>.
 SLURM_MAB = dict(
     job_name="cegis_mab",
     mem="64G",
     time="24:00:00",
     cpus=8,
     throttle=8,
-    partition="gpu100",   # GPU partition (see SLURM_GPU note); set a CPU one if gres=None
+    partition="gpu",      # EDIT: GPU partition (see SLURM_GPU); a CPU one if gres=None
     account=None,
     qos=None,
     gres="gpu:1",

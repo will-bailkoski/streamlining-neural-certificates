@@ -127,9 +127,19 @@ Thumbs.db
 # Profiling outputs
 *.prof
 
-# thesis
-
-!doc
+# LaTeX build artefacts (the compiled PDFs under doc/ are tracked)
+*.aux
+*.bbl
+*.blg
+*.lof
+*.lot
+*.out
+*.toc
+*.nav
+*.snm
+*.synctex.gz
+*.fls
+*.fdb_latexmk
 
 
 # Temporary files
@@ -146,5 +156,5 @@ Thumbs.db
 /checkpoints/
 *.sh
 
-# Library code (if not tracking changes)
+# Local clone of auto_LiRPA, if installed from source
 auto_LiRPA/

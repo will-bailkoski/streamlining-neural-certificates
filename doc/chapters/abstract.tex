@@ -1,0 +1,16 @@
+% !TEX root = ../MasterThesis.tex
+%\addcontentsline{toc}{chapter}{Abstract}
+
+\begin{abstract}
+\pagenumbering{gobble}
+
+Formal guarantees for stochastic dynamical systems cannot come from simulation, since no finite set of sampled trajectories can rule out a rare failure. A guarantee must instead be proven, holding over every admissible initial condition and every realisation of the noise. The dominant route is a \emph{certificate}, a function whose existence acts as proof. Learning the certificate as a neural network handles nonlinear and high-dimensional dynamics, with counterexample-guided inductive synthesis (CEGIS) recovering soundness by alternating a learner with a formal verifier. This verifier is the bottleneck: prevailing practice runs a sound and expensive verification on every round, despite most rounds needing only a counterexample.
+
+This thesis separates the two tasks. Refutation, the hunt for a counterexample, may be fast and unsound. Verification, the proof that no counterexample exists, must be sound and is expensive. We survey and implement three sound-verifier families (symbolic solvers, bound propagation, and sound sampling) under a single interface, mapping their capability boundary on a benchmark suite that spans dynamics class, noise model and dimension. Our experiments show the exact symbolic route is inconsistent beyond two noise dimensions, bound propagation alone reaches transcendental dynamics, and no single family covers the whole suite. We then treat refutation as black-box optimisation, benchmarking six optimisers on standard test functions and on \emph{faux certificates} harvested from genuine CEGIS runs. A well-tuned optimiser matches the sound verifier's counterexample quality at one to three orders of magnitude lower cost. Assembling the two yields the central result. A cheap refuter pre-screen reduces CEGIS to faster rounds followed by a single sound certification call, with speed-ups reaching $15.7\times$ and turning the hardest benchmark from a multi-hour run into a $22$-minute one.
+
+\bigskip
+Keywords: Certificate Synthesis; Verification; Optimisation
+
+
+\newpage
+\end{abstract}

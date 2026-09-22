@@ -1,14 +1,11 @@
 """
 Experiment 1 — CEGIS verifier-only timing, autoLiRPA IBP engine (GPU).
 
-The autoLiRPA bound methods bin continuous noise into noise_disc cells per
-dimension (a sound over-approximation of E[V]); noise_disc is this experiment's
-"discretisation error" axis. It is swept PER ENV FAMILY (config.noise_groups):
-the linear* envs ignore it (discrete noise, exact), and the cell count is
-disc^dim so the ceiling drops with dimension — 8 on 2D is 64 cells per bound
-call, already the practical edge.
+The verifier-only baseline arm of the Chapter 7 campaign (config.STREAMLINE_*):
+LinSwitch, DoubleWell and Pendulum over five seeds, at the engine's default noise
+discretisation.
 
-    python -m experiments.cegis_verify.ibp --tag bigtest
+    python -m experiments.cegis_verify.ibp --tag final
     python -m experiments.cegis_verify.ibp --local 2
 """
 
@@ -19,12 +16,10 @@ from experiments.common.slurm import SLURM_GPU_LONG
 
 CAMPAIGN_TITLE = "cegis_verify_ibp"
 
-# Cranked budgets (bigtest): the old 200k box cap fired by depth 5-7 even on
-# linear 3D/4D (verify_matrix, split=all era). timeout fires INSIDE the SLURM
-# wall so the verdict is always recorded (a wall kill leaves status=running,
-# which the figures silently drop).
+# timeout fires INSIDE the SLURM wall so the verdict is always recorded (a wall
+# kill leaves status=running, which the figures silently drop).
 ENGINE_HP = dict(
-    split="longest",     # split=all at depth 18 was the old limiter (2026-07-03)
+    split="longest",     # longest-edge region splitting
     max_depth=60,
     max_boxes=2_000_000,
     timeout=39_600,      # 11h per verify call < the 12h SLURM_GPU_LONG wall
@@ -33,22 +28,18 @@ ENGINE_HP = dict(
     # reach the engine. The engine default (2048) applies.
 )
 
-NOISE_GROUPS = config.noise_groups(disc_2d=[1, 4, 8], disc_3d=[1, 3], disc_4d=[1, 2])
 
 if __name__ == "__main__":
     launch(
         campaign_title=CAMPAIGN_TITLE,
         runner="cegis",
         slurm=SLURM_GPU_LONG,
-        args=[
-            dict(
-                **ng,
-                seed=config.SEEDS,
-                **config.CEGIS,
-                engine="ibp",
-                refuter="none",
-                **ENGINE_HP,
-            )
-            for ng in NOISE_GROUPS
-        ],
+        args=dict(
+            env=config.STREAMLINE_ENVS,
+            seed=config.STREAMLINE_SEEDS,
+            **config.CEGIS,
+            engine="ibp",
+            refuter="none",
+            **ENGINE_HP,
+        ),
     )

@@ -48,9 +48,7 @@ from src.results.recorder import load_params
 DOC_FIGURES = Path(__file__).resolve().parents[1] / "doc" / "Figures"
 
 _LABELS = {
-    "pendulum": (r"$\theta$", r"$\dot\theta$"),
     "pendulum_lqr": (r"$\theta$", r"$\dot\theta$"),
-    "thermal": (r"$T_z\ (^\circ\mathrm{C})$", r"$T_w\ (^\circ\mathrm{C})$"),
 }
 
 

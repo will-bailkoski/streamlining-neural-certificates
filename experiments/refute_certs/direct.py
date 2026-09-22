@@ -12,7 +12,7 @@ from experiments.common.slurm import SLURM_GPU
 
 CAMPAIGN_TITLE = "refute_certs_direct"
 
-# BBOB hpsweep winner (results/analysis/bbob_hpsweep, 2026-07-03).
+# BBOB tuning winner (Table tab:bbob-best).
 REFUTER_HP = dict(po_eps=1e-3)
 
 

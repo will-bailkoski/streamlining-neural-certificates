@@ -38,7 +38,7 @@ CONTINUOUS_ENVS = ["linstoch2D", "doublewell"]  # additive bounded noise -> boxe
 SYMBOLIC_ENVS = DISCRETE_ENVS + CONTINUOUS_ENVS
 
 # Envs that expose a torch next-state module (autoLiRPA path).
-TORCH_STEP_ENVS = ["linstoch2D", "doublewell", "thermal", "vanderpol", "pendulum_lqr"]
+TORCH_STEP_ENVS = ["linstoch2D", "doublewell", "pendulum_lqr"]
 
 
 def _states(env, n=6, seed=0):

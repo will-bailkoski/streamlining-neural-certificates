@@ -1,0 +1,106 @@
+% !TEX root = ../MasterThesis.tex
+\normallinespacing
+
+\chapter{Introduction}
+
+A stochastic system that must not fail cannot be trusted on the strength of a few successful
+simulations. Simulation samples behaviour; it never rules out the rare
+trajectory that ends in disaster. Examples of risky systems include a controller keeping a drone aloft, a policy managing financial risk, or a robot navigating on noisy sensors. What such systems demand instead is a
+\emph{formal guarantee}: a proof that the system meets its required specification with
+quantified confidence, holding over every admissible initial condition and every
+realisation of the noise. This thesis is about producing such guarantees
+automatically, and most importantly about producing them
+\emph{quickly}.
+
+\section{Motivation}
+
+The dominant route to a formal guarantee is a \emph{certificate}: a single
+function whose existence witnesses a proof that a system satisfies a property,
+reducing an intractable question about infinitely many trajectories to a local,
+checkable inequality on one function~\cite{lyapunov1992general}. Verifying a candidate then
+amounts to establishing one inequality everywhere on the domain.
+
+Classical synthesis fixes the certificate's functional form in advance (for example, a
+polynomial for sum-of-squares programming~\cite{parrilo2000}) buying soundness at the price of expressiveness, and scaling
+poorly beyond low dimensions and simple dynamics. The modern alternative is to
+\emph{learn} the certificate as a neural network, expressive enough for
+high-dimensional, non-polynomial, and even learned dynamics, but forfeiting any
+closed-form guarantee: fitting a network on finitely many sampled states says
+nothing about the uncountably many states between them.
+\emph{Counterexample-guided inductive synthesis} (CEGIS) recovers soundness by
+interleaving a \emph{learner}, which trains the network on a dataset of states,
+with a \emph{verifier}, which checks the drift condition over the whole domain
+and, on failure, returns a counterexample for the learner to
+repair~\cite{chatterjee2023learnerverifier, abate2021fossil}. The loop repeats
+until the verifier certifies the candidate.
+
+A verifier inside CEGIS is doing two different jobs: while the candidate is invalid, the loop needs only a
+\emph{counterexample} to train on; only once the candidate is finally valid
+does it need a \emph{proof} that no counterexample exists. Despite this, the prevailing practice
+discharges both jobs with a \emph{single} method running
+every round, doubling as the counterexample generator on the rounds it
+rejects. Sound verification is expensive because it must reason over
+the entire domain. Paying that cost every round, when most rounds need
+only a counterexample, is the bottleneck this thesis sets out to remove.
+
+\section{Objectives}
+
+The guiding hypothesis, stated formally in
+Chapter~\ref{sec:preliminaries}, is that giving each of these tasks its own
+dedicated algorithm, a cheap refuter to hunt counterexamples and a sound
+verifier reserved for the final proof, yields a substantial speed-up.
+We provide multiple contributions to establish and support this
+claim.\footnote{An open-source implementation of every verifier,
+refuter, experiment driver, and figure in this thesis is available at
+\url{https://github.com/will-bailkoski/streamlining-neural-certificates}.}
+
+\begin{itemize}
+    \item \textbf{A unified survey and implementation of certificate
+      verification for stochastic systems.} We bring three verifier families
+      --- symbolic solvers (SMT, MILP), abstract interpretation (the LiRPA
+      family), and sound sampling methods --- under a single interface, and map
+      each onto a benchmark suite. The suite spans dynamics classes, noise models, and dimensions,
+      highlighting where each method succeeds and fails.
+
+    \item \textbf{A dedicated treatment of refutation as black-box
+      optimisation.} We cast counterexample search as global optimisation and
+      benchmark six optimisers. Using uninformed,
+      Lipschitz-aware, and population-based search algorithms, we test on a standard benchmark, then on a library of real \emph{faux
+      certificates} harvested from genuine CEGIS runs, finding that a well-tuned
+      refuter matches the verifier's counterexample quality at one to three
+      orders of magnitude lower cost.
+
+    \item \textbf{Empirical evidence that separating refutation from verification
+      streamlines synthesis.} Placing a fast refuter pre-screen in front of a
+      sound verifier reduces CEGIS to a sequence of cheap search-and-retrain
+      rounds followed by a single certification call. The speed-up scales with
+      the cost of that call, improving the hardest benchmark from a multi-hour run to minutes.
+
+    \item \textbf{Tighter Lipschitz constants for sample-based verification.}
+      Because verification cost grows as a power of the drift-Lipschitz constant,
+      we tighten estimates on the object sample-based verifiers consume: an exact drift-Lipschitz
+      constant for linear systems, computed directly rather than by loose
+      composition, and sound per-axis (anisotropic) constants. The two savings
+      multiply, reducing the number of samples needed to cover a continuous
+      domain by more than an order of magnitude in four dimensions.
+\end{itemize}
+
+\section{Structure of the Report}
+
+Chapter~\ref{sec:preliminaries} defines the problem: the class of stochastic
+systems, the ranking supermartingale certificate and its drift condition, the
+CEGIS loop that synthesises it, and the central hypothesis the rest of the thesis
+develops. For \textbf{Advanced Topics in AI}, Chapter~\ref{sec:lipschitz} is a focused study of the Lipschitz
+constant and contributes two methods for tightening the constant for better verification performance. Chapter~\ref{chap:benchmarks} presents the benchmark suite, selecting
+systems from the control and formal-methods literature so that difficulty rises
+along interpretable axes. The two halves of the loop are then treated in
+isolation: Chapter~\ref{chap:verification} surveys and evaluates the sound
+verifiers, establishing the capability boundary and the cost of a sound call,
+while Chapter~\ref{chap:refutation} develops refutation as cheap counterexample
+search and benchmarks the refuters against it. Finally,
+Chapter~\ref{chap:streamlining} assembles the two into the full pipeline and
+tests the hypothesis directly, measuring the end-to-end speed-up of a refuter
+pre-screen over a verifier-only baseline.
+
+
+\newpage

@@ -1,0 +1,78 @@
+% Template Created by Albert Alises Sorribas (albert.alises@gmail.com) for the thesis of the MSc. in Computational Biomedical Engineering, Universitat Pompeu Fabra. Based on the thesis template of the Imperial College London,  downloadable at http://www.imperial.ac.uk/brand-style-guide/templates/downloadable-templates/
+
+\documentclass[a4paper,12pt,twoside]{report}
+\usepackage[left=3cm,right=3cm,top=3cm,bottom=3cm]{geometry} %Margins
+ \usepackage{pdfpages}
+ \usepackage[numbers,sort&compress]{natbib}
+ \usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{setspace}
+\usepackage{tocloft}
+\usepackage{amsmath}
+\usepackage{chngcntr }
+\usepackage[toc,page]{appendix}
+\usepackage[T1]{fontenc}
+\usepackage[nottoc]{tocbibind}
+\usepackage[compact]{titlesec}
+\titlespacing{\section}{0pt}{1ex}{0ex}
+\titlespacing{\subsection}{0pt}{1ex}{0ex}
+\titlespacing{\subsubsection}{0pt}{1ex}{0ex}
+
+\counterwithout{figure}{chapter}
+\counterwithout{table}{chapter}
+\raggedbottom
+
+\include{thesis.preamble}
+
+\begin{document}
+
+\newgeometry{left=2cm,right=2cm} %Only for the title new margins
+
+
+%Title parameters
+\title{Streamlining Neural Certificate Synthesis}
+\author{William Bailkoski}
+\submitdate{July 2026}
+\supervisor{Konstantin Kueffner}
+\cosupervisor{Prof. Vicenç Gómez}
+% \tutor{Dr. Mirco Giacobbe}
+
+\maketitle
+
+%\iffalse
+    \restoregeometry
+
+    \preface
+    \cleardoublepage 
+
+
+    % \input{chapters/dedication}
+    \input{chapters/acknowledgements}
+    \input{chapters/abstract}
+    
+    \body
+    
+    %Introduction of the project
+    \input{chapters/introduction}
+    \input{chapters/preliminaries}
+    \input{chapters/lipschitz}
+    \input{chapters/benchmarking}
+    \input{chapters/verification}
+    \input{chapters/refutation}
+    \input{chapters/discussion}
+    
+    \listoffigures
+    \newpage
+    \listoftables
+    
+    % appendices come here
+    %\bibliographystyle{naturemag}
+    %% USE DOIs in your references whenever possible
+    \bibliographystyle{plainurl}
+    \bibliography{bibliography}
+    
+    \input{appendix}
+%\fi
+
+\end{document}

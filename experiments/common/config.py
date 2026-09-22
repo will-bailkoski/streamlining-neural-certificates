@@ -19,16 +19,22 @@ CERT_STRUCTURE = "relu_pwl"
 # additive-noise linear (exact with noise binning) each at 2D/3D/4D (dimension
 # scaling), a polynomial nonlinear (doublewell — exact in smt/milp), and a
 # transcendental pendulum (sin -> smt/milp abstain; sampling + lirpa handle it).
-# doublewell / pendulum_lqr are the TUNED geometries (promoted 2026-07-03; the
-# legacy defaults had no valid certificate — see src/benchmarks/utils.py).
 ENVS = [
     "linear2D", "linear3D", "linear4D",
     "linstoch2D", "linstoch3D", "linstoch4D",
     "doublewell", "pendulum_lqr",
 ]
 
-# How many seeds each combination is repeated over (one place, every experiment).
+# Seeds each combination is repeated over (verification campaigns and the BBOB /
+# faux-certificate refuter benchmarks).
 SEEDS = [0, 1, 2]
+
+# Chapter 7 (Streamlining CEGIS, Table tab:cegis-speedup): the end-to-end campaign
+# runs the three LiRPA engines on the three systems they certify, comparing
+# verifier-only, random pre-screen and whale pre-screen over five seeds
+# (3 engines x 3 systems x 3 strategies x 5 seeds = 135 arms).
+STREAMLINE_ENVS = ["linear2D", "doublewell", "pendulum_lqr"]
+STREAMLINE_SEEDS = [0, 1, 2, 3, 4]
 
 # Noise-model split of ENVS, for per-env-family noise_disc axes. The linear*
 # envs use a discrete Bernoulli mode switch — exact regardless of noise_disc
@@ -67,15 +73,11 @@ CEGIS = dict(
     cert_structure=CERT_STRUCTURE,
     hidden_layers="8,8",
     epsilon=1e-3,
-    train_epsilon=2e-2,  # train a bigger margin than we verify (feasibility-probed
-                         # for relu_pwl 8,8 on the four legacy envs; the runner's
-                         # implicit default would be 1e-2 — make the choice explicit)
+    train_epsilon=2e-2,  # train a bigger margin than we verify
     max_rounds=300,
     sample_count=2000,
-    mc_samples=128,  # successor draws per refuter-objective drift estimate. 16 made
-                     # the refuter maximise a surface whose noise floor rivalled the
-                     # true margins (std ~ sigma/4); 128 cuts the std ~2.8x further,
-                     # and the runner's --refuter_recheck_n gate (fresh n=4096
-                     # re-estimate) kills what extreme-value bias remains.
+    mc_samples=16,   # successor draws per refuter-objective drift estimate (m = 16);
+                     # a refuter counterexample is re-checked with a fresh n=4096
+                     # estimate (--refuter_recheck_n) before it is accepted.
     history_len=1,  # counterexamples fed to the trainer per round (fairness control)
 )

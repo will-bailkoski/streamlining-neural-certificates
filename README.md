@@ -1,220 +1,163 @@
 # Streamlining Neural Certificate Synthesis
 
-Code accompanying the MSc thesis **"Streamlining Neural Certificate Synthesis"**
-(William Bailkoski, 2026). Every verifier, refuter, experiment driver, and thesis
-figure is produced by the code in this repository: the `experiments/` launchers
-write campaigns to `results/<campaign>/<tag>/`, and the `visualisation/` scripts
-render the thesis figures from those results (`--doc` emits them under the exact
-names the thesis includes).
+Code, thesis and presentation for the MSc thesis **"Streamlining Neural Certificate
+Synthesis"** (William Bailkoski, Universitat Pompeu Fabra, 2026).
 
-## The framework: neural certificate verification, unified
+- Thesis: [`doc/MasterThesis.pdf`](doc/MasterThesis.pdf) (LaTeX source in `doc/`)
+- Presentation: [`doc/presentation/streamlining_talk.pdf`](doc/presentation/streamlining_talk.pdf)
 
-Train and verify **neural certificates** (supermartingale / Lyapunov functions `V`)
-for stochastic dynamical systems, and compare verification engines *fairly* on the
-same problem.
+The thesis studies counterexample-guided inductive synthesis (CEGIS) of neural
+supermartingale certificates for discrete-time stochastic systems. It compares sound
+verifiers from three families (symbolic, bound propagation, sampling), benchmarks
+black-box optimisers as cheap *refuters*, and shows that running a refuter before the
+sound verifier in each CEGIS round removes most sound-verifier calls, speeding up
+synthesis by as much as 15.7x.
 
-The design principle is **one definition, many engines**. A single `Env` defines the
-dynamics, noise, domain and equilibrium; a single `CertificateSpec` defines the
-parametric form of `V`; and every verification engine checks the *same* drift
-condition over the *same* system:
+## Design
+
+One definition, many engines. A single `Env` defines the dynamics, noise, domain
+and equilibrium; a single `CertificateSpec` defines the parametric form of `V`; every
+engine checks the same drift condition on the same system:
 
 ```
-                 verified  ⇔   E_w[ V(f(x, w)) ] − V(x) + ε  ≤  0
-                            for all  x ∈ domain \ equilibrium
+verified  <=>  E_w[ V(f(x, w)) ] - V(x) + eps <= 0   for all x in domain \ equilibrium
 ```
 
-A counterexample is a state where that quantity is `> 0`. Because all engines
-consume one source of truth, a "switched-linear" experiment means the same system
-whether it is checked by SMT, MILP, autoLiRPA or sampling — which is what makes
-cross-engine comparisons sound and fair.
+A counterexample is a state where the left-hand side is positive. The jax forward
+pass, the Z3 / Gurobi encodings and the torch module of a certificate are all derived
+from one spec, so training and verification never diverge (checked by `tests/`).
 
-## Layout
+## Repository layout
 
 ```
 src/
-  benchmarks/    one Env per system (dynamics + noise + domain + equilibrium)
-  certificates/  one CertificateSpec per V structure + z3/gurobi/torch encoders
-  verifiers/     the engines behind one interface + the shared drift functional
-  training/      CEGIS trainer (counterexample-guided)
-  results/       Recorder (run.json + metrics.csv + npz params; no pickle)
-  experiment.py  config-driven CEGIS runner (entrypoint)
-experiments/     config generation + the fairness harness
-tests/           cross-backend consistency / soundness guard rails
-```
-
-### Environments (`src/benchmarks/utils.py::DIRECTORY`)
-
-| name | system | noise | engines |
-|------|--------|-------|---------|
-| `linear2D`   | switched linear, default 2D matrices (Bernoulli) | discrete (exact) | all |
-| `linear3D`, `linear4D`, `linear2D_rand`, ... | switched linear, **random** matrices at a target spectral norm, any dimension | discrete (exact) | all |
-| `doublewell` | gradient flow, double-well potential | continuous (Uniform) | sampling, MILP, SMT, autoLiRPA |
-| `pendulum`   | inverted pendulum, trained NN controller (nonlinear) | internal (Triangular) | sampling, autoLiRPA |
-
-Convention: `_dynamics` is the core map; additive noise lives in `_pre`/`_post`
-and is applied identically in the jax rollout and the symbolic encodings.
-
-Build arbitrary-dimension linear benchmarks directly:
-
-```python
-from src.benchmarks.linear_system import SwitchedLinearEnv
-env = SwitchedLinearEnv.random_construction(ndims=5, lip=0.8)  # two random L2-contractive modes
-# known supermartingale: V(x) = ||x||_2  (V(x) = |x|_1 for the default L1 matrices)
-```
-
-The inverted pendulum is nonlinear (a `sin` term), so SMT/MILP raise; it is
-verified with the sampling and autoLiRPA engines. Its controller is trained by policy gradient
-with a fixed seed, so `make_env("pendulum")` rebuilds the same env each time (no
-pickle, no weight files) — at the cost of a short training step on construction.
-
-### Certificate structures (`src/certificates/structures.py::DIRECTORY`)
-
-`bounded_pwl` (ReLU + hard-sigmoid, `V∈[0,1]`), `clip_pwl`, `relu_pwl`,
-`bottom_pwl`, `tanh`. The jax forward, the z3/gurobi encodings and the torch
-module are all derived from one spec, so training and verification never diverge.
-
-### Engines (`src/verifiers/`)
-
-| engine | kind | sound? | notes |
-|--------|------|--------|-------|
-| `smt`      | Z3 symbolic        | yes | exact for discrete noise; box over-approx for continuous |
-| `milp`     | Gurobi big-M       | yes | needs a Gurobi license; ReLU big-M from interval bounds |
-| `lirpa`    | autoLiRPA + BaB    | yes | bound propagation; box method, weaker near ball equilibria |
-| `sampling` | random + gradient  | refuter | finds counterexamples; cannot prove `verified` |
-
-For continuous noise the SMT, MILP **and autoLiRPA** engines bin the noise into
-cells and bound each cell as a **box** (`x' ∈ x + [lo, hi]`), a sound
-over-approximation of `E[V]`; discrete noise collapses the box to an exact point.
-The cell count is tunable via `--noise_disc` (per dimension) — higher means a
-tighter over-approximation at higher cost. Counterexamples from the sound engines
-are re-checked with the canonical jax drift (`src/verifiers/drift.py`).
-
-## Running experiments
-
-Experiments are organised as **launchers** (one per engine / refuter) that each
-expand a dict of axes into a SLURM array, plus **runners** (the per-combo
-executable that one array task runs). Edit the shared axes once in
-`experiments/common/config.py` (envs, seeds, base CEGIS settings) and `slurm.py`
-(resource profiles); each launcher only adds its own hyperparameter grid (a list
-value is a sweep axis).
-
-```
+  benchmarks/     one Env per system (dynamics, noise, domain, equilibrium)
+  certificates/   certificate structures + Z3 / Gurobi / torch encoders
+  verifiers/      sound engines behind one interface + the shared drift functional
+  refuters/       black-box maximisers behind one interface
+  training/       CEGIS learner
+  results/        run directories, recorder and loader
+  plotting/       shared figure helpers
 experiments/
-  common/        config (envs/seeds/cegis), slurm profiles, array builder, launch()
-  runners/       one process = one array task: cegis, refute_bbob, refute_cert, lirpa_bench
-  cegis_verify/  experiment 1: per-engine CEGIS verifier-only timing (smt, milp, mab, mc, ibp, crown, alpha_crown)
-  refute_bbob/   experiment 2: per-refuter BBOB benchmark (random, grid, gradient, adalip, direct, whale)
-  refute_certs/  experiment 3: per-refuter replay of harvested invalid certs
-  cegis_improve/ experiment 4: per-engine refuter-first CEGIS (fairness controls on)
+  common/         shared axes (config.py), SLURM profiles, array launcher
+  runners/        one process = one task: cegis, refute_bbob, refute_cert
+  cegis_verify/   verifier-only CEGIS, one launcher per engine
+  cegis_improve/  refuter-first CEGIS (random / whale pre-screen), LiRPA engines
+  refute_bbob/    refuter benchmark on BBOB functions, one launcher per refuter
+  refute_certs/   refuters replayed on verifier-rejected ("faux") certificates
+  *.py            standalone studies (Lipschitz budget, MILP noise bins, anytime bounds)
+visualisation/    one script per thesis figure (--doc writes into doc/Figures/)
+results/analysis/ compile a campaign into compiled.csv + summary
+tests/            cross-backend consistency and soundness tests
+doc/              thesis source + PDF, presentation source + PDF
 ```
 
-Run one combination locally (the printed `test one locally` line is exactly a
-combo), a whole launcher locally, or submit the array:
+## Installation
+
+Python 3.11 or newer.
 
 ```bash
-# one CEGIS combo via the runner
-./venv/Scripts/python.exe -m experiments.runners.cegis --env linstoch2D --engine smt --refuter none --seed 0
-# one refuter on one BBOB function (+ search-pattern figure)
-./venv/Scripts/python.exe -m experiments.runners.refute_bbob --function rastrigin --refuter whale --plots
-
-# a launcher: write the array + print the sbatch line
-./venv/Scripts/python.exe -m experiments.cegis_verify.smt
-./venv/Scripts/python.exe -m experiments.cegis_verify.smt --local 2     # run the first 2 combos now
-./venv/Scripts/python.exe -m experiments.cegis_verify.smt --aggregate   # collate latest tag -> compiled.csv
-
-# soundness / consistency tests
-./venv/Scripts/python.exe -m pytest tests -q
+python -m venv venv
+source venv/bin/activate          # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m pytest tests -q
 ```
 
-Each combo writes to `results/<campaign_title>/<tag>/runs/<run_id>/` via
-`src/results/run_dir.py`: `manifest.json` (args + status), plus whichever of
-`stats.json` (single stats), `iterations.csv` (per-iteration), `figures/` (plots)
-or `objects/*.npz` (networks; the CEGIS runner also snapshots every refuted cert
-under `objects/invalid/`) the experiment produces. `campaign_title` is preset per
-launcher; `tag` defaults to the launch datetime (override with `--tag`). The
-array's SLURM logs land in `results/<campaign_title>/<tag>/logs/`.
+- **Gurobi.** The MILP engine uses `gurobipy`. Its bundled licence only handles
+  small models; the MILP experiments need a full (e.g. free academic) licence.
+- **GPU (optional).** The LiRPA and MAB engines use a GPU when one is available.
+  For JAX on GPU install `jax[cuda12]`; torch picks up CUDA automatically.
 
-### Loading runs back
+## Benchmarks
 
-Runs are self-describing, so loading needs no pickle — the env is rebuilt from
-its registry name and the certificate from its spec name, then the saved params
-are attached:
+| Thesis name | Registry key(s) | Dynamics | Noise |
+|---|---|---|---|
+| LinSwitch  | `linear2D` (`linear3D`, `linear4D`) | switched linear | multiplicative (random mode switch) |
+| LinStoch   | `linstoch2D` (`linstoch3D`, `linstoch4D`) | linear | additive bounded |
+| DoubleWell | `doublewell` | polynomial gradient flow | additive bounded |
+| Pendulum   | `pendulum_lqr` | inverted pendulum, LQR feedback | additive triangular |
 
-```python
-from src.results.loader import list_runs, load_run
+Keys index `src/benchmarks/utils.py::DIRECTORY`; build any system with
+`make_env("<key>")`.
 
-for r in list_runs():
-    print(r["run_id"], r["status"], r["verified"], r["env"], r["engine"])
+## Verification engines
 
-run  = load_run("linear2D_smt_2026-06-14_16-20-16")
-env  = run.env()              # reconstructed Env
-spec = run.spec()            # CertificateSpec
-V, p = run.certificate()     # callable V(x) + raw params (final round; pass round=k for another)
-rows = run.metrics()         # metrics.csv as a list of dicts
-```
+| `--engine` | Method | Family |
+|---|---|---|
+| `smt`         | Z3, exact encoding of the ReLU certificate | symbolic |
+| `milp`        | Gurobi big-M MILP | symbolic |
+| `ibp`, `crown`, `alpha-crown` | autoLiRPA bound propagation + branch and bound | bound propagation |
+| `mc`          | Monte Carlo with a Lipschitz mean-to-max bound | sampling |
+| `mab`         | adaptive multi-armed-bandit refinement | sampling |
 
-This means an experiment's certificate can be re-verified by a *different* engine,
-re-plotted, or continued, just from its `results/<run_id>/` directory.
+Continuous noise is binned into `--noise_disc` cells per dimension, each bounded as a
+box: a sound over-approximation of the expectation that tightens as the bin count
+grows.
 
 ## Refuters
 
-The sampling engine's counterexample search is a *refuter*: a black-box maximiser
-of an objective over a box. `src/refuters/` provides them behind one interface,
-decoupled from the drift so they can be benchmarked and reused:
+`random`, `grid`, `gradient` (hill climbing), `direct` (DIRECT), `adalip` (AdaLIPO) and
+`whale` (whale optimisation), all in `src/refuters/`. Each is a single jit-compiled
+`lax.scan` behind one interface:
 
 ```python
 refuter(objective, domain, key, *, budget, batch_size) -> (best_x, best_y, evals_trace, best_trace)
-# objective(xs, key) -> ys   (xs: (B,d) -> ys: (B,), MAXIMISED)
 ```
 
-Available (`src/refuters/base.py::DIRECTORY`): `random`, `grid`, `gradient`
-(multi-start projected ascent), `adalip` (AdaLIPO), `direct` (Lipschitz DIRECT),
-`whale` (WOA). Each is a single `lax.scan`, so the whole search is one JIT call
-and emits a convergence trace.
+## Running experiments
 
-Benchmark / tune them on BBOB-style functions via experiment 2 (one refuter ×
-function × hp per run; `--plots` adds the search-pattern figure), one launcher per
-refuter:
+Each launcher expands its axes into one command per combination, writes them to
+`results/<campaign>/<tag>/` together with a SLURM array script, and prints the
+`sbatch` line. The same launcher can run locally or collate finished runs:
 
 ```bash
-./venv/Scripts/python.exe -m experiments.refute_bbob.whale --local
-# -> results/refute_bbob_whale/<tag>/compiled.csv  (+ per-run figures with --plots)
+python -m experiments.cegis_verify.crown                 # write the array + print sbatch
+python -m experiments.cegis_verify.crown --local 2       # run the first 2 combos locally
+python -m experiments.cegis_verify.crown --aggregate     # collate -> compiled.csv
 ```
 
-The test functions in `experiments/bbob_functions.py` are maximisation problems
-(the refuters maximise the objective directly). On 2D Rastrigin / Rosenbrock /
-Ackley (budget 8192, 10 runs): `whale` is the best quality/speed trade-off
-(near-optimal, ~5 ms); `direct` matches its quality but is ~10× slower; `adalip`
-is sample-efficient but ~350 ms (its Lipschitz history dominates); `gradient`
-stalls in local optima on multimodal landscapes; `random` and `grid` are fast
-baselines.
-
-## Visualisation
-
-Publication figures are produced by the drivers in `visualisation/` (they reuse
-the renderers in `src/plotting/` and write vector PDF + PNG under
-`results/figures/`):
+A single combination can also be run directly:
 
 ```bash
-# 2D environments: sets, phase portrait + trajectories, candidate-cert heatmaps
-./venv/Scripts/python.exe -m visualisation.env_sets --env linstoch2D
-./venv/Scripts/python.exe -m visualisation.env_sets --cert results/cegis_verify_mc/<tag>/runs/<id> --cex
-# BBOB landscapes + per-optimiser evaluation patterns
-./venv/Scripts/python.exe -m visualisation.bbob_landscapes
-# how an autoLiRPA verifier explored a 2D env: per-cell status montage + animated GIF
-./venv/Scripts/python.exe -m visualisation.verifier_exploration --env linstoch2D
-# performance comparison from one or more compiled.csv (speed, verdicts, sample efficiency)
-./venv/Scripts/python.exe -m visualisation.performance results
+python -m experiments.runners.cegis --env linear2D --engine crown --refuter whale --seed 0
+python -m experiments.runners.refute_bbob --function rastrigin --refuter whale --seed 0
 ```
 
-## Status
+Shared axes (systems, seeds, CEGIS settings) live in `experiments/common/config.py`,
+cluster settings in `experiments/common/slurm.py` (edit the partition and venv path
+for your cluster). Each run writes its manifest, statistics and any saved
+certificates under `results/<campaign>/<tag>/runs/<run_id>/`. The `visualisation/`
+scripts read the latest tag of each campaign; pass `--doc` to write the figure into
+`doc/Figures/` under the name the thesis uses.
 
-Working: the benchmark suite + certificate structures (cross-backend verified by
-the consistency tests), the verification engines (`smt`, `milp`, the autoLiRPA
-bound methods `ibp`/`crown`/`alpha-crown`, `montecarlo`, the sound box-UCB `mab`),
-the four experiments (`cegis_verify`, `refute_bbob`, `refute_certs`,
-`cegis_improve`) with their launchers + runners, the `compile.py` analysis, and the
-`visualisation/` drivers. autoLiRPA handles continuous noise (binned into cells).
-The CEGIS loop recompiles the refuter once (params are a traced argument), but
-sound verification on trained ReLU nets can still be slow / inconclusive — which is
-itself part of the thesis story.
+## Reproducing the thesis
+
+All commands are run from the repository root as `python -m <module>`.
+
+| Chapter | Experiment | Figures |
+|---|---|---|
+| 3 Lipschitz bounds | `experiments.lipschitz_budget --plot` | `visualisation.lipschitz_budget --separate --doc`, `visualisation.lipschitz_gridding --doc` |
+| 4 Benchmarks, App. A | none | `visualisation.env_sets --env <key> --doc` for `linear2D`, `linstoch2D`, `doublewell`, `pendulum_lqr` |
+| 5 Verification: MILP noise bins | `experiments.milp_noise_disc` | `visualisation.milp_noise_disc --doc` |
+| 5 Verification: bound propagation | `experiments.pendulum_certs`, then `experiments.pendulum_anytime --plot` | `visualisation.pendulum_anytime --doc`, `visualisation.verifier_grid --method crown --env pendulum_lqr --doc` |
+| 5 Verification: MAB | `experiments.cegis_verify.mab` | `visualisation.mab_dashboard --doc` |
+| 5 Capability boundary | `experiments.cegis_verify.{smt,milp,mc,mab,ibp,crown,alpha_crown}` | none |
+| 6 Refutation: BBOB | `experiments.bbob_profile`, `experiments.refute_bbob.<refuter>` for all six | `visualisation.bbob_heatmaps --doc`, `visualisation.bbob_quality_per_function --doc`, `visualisation.bbob_quality_vs_time --doc`, `visualisation.refuter_patterns --doc` (App. B) |
+| 6 Refutation: faux certificates | `experiments.refute_certs.<refuter> --source results/cegis_verify_<engine>/<tag>` | `visualisation.faux_certs --doc` |
+| 7 Streamlining CEGIS | `experiments.cegis_verify.{ibp,crown,alpha_crown}` + `experiments.cegis_improve.{ibp,crown,alpha_crown}` | `results.analysis.compile`, `visualisation.cegis_pipelines` |
+
+The Chapter 7 campaign is three LiRPA engines x three systems (LinSwitch, DoubleWell,
+Pendulum) x three strategies (verifier-only, random pre-screen, whale pre-screen) x
+five seeds, with an 8192-evaluation refuter budget and 16 Monte-Carlo samples per
+point. MILP runs need a Gurobi licence; in the thesis they ran locally (`--local`)
+rather than on the cluster.
+
+## Building the documents
+
+```bash
+cd doc && pdflatex MasterThesis && bibtex MasterThesis && pdflatex MasterThesis && pdflatex MasterThesis
+cd doc/presentation && pdflatex streamlining_talk && pdflatex streamlining_talk
+```
+
+The two illustrative talk figures are regenerated with
+`python doc/presentation/boat_demo.py` and `python doc/presentation/mab_demo.py`.

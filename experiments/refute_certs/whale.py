@@ -12,7 +12,7 @@ from experiments.common.slurm import SLURM_GPU
 
 CAMPAIGN_TITLE = "refute_certs_whale"
 
-# BBOB hpsweep winner (results/analysis/bbob_hpsweep, 2026-07-03):
+# BBOB tuning winner (Table tab:bbob-best):
 # mean normalised regret 5.8e-08 across the 5 BBOB functions.
 REFUTER_HP = dict(a_max=1.5, b=0.5, p=0.75)
 

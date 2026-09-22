@@ -1,0 +1,185 @@
+% !TEX root = ../MasterThesis.tex
+\normallinespacing
+
+\chapter{Benchmarks}
+\label{chap:benchmarks}
+
+In this project we compare the strengths and weaknesses of a range of
+certificate verification methods. The suite therefore spans a broad range of
+system types, drawn from the literature to expose where each method succeeds and
+fails. By identifying structural features of systems that make verification easy
+or hard, we can separate each method along interpretable axes.
+
+We select systems from the formal-methods and control literature so that the
+suite spans three orthogonal axes of difficulty:
+
+\begin{itemize}
+  \item \textbf{Dynamics class.} From linear, through polynomial, to
+        transcendental (e.g.\ trigonometric) dynamics. This axis directly controls
+        which symbolic engines can encode the one-step map \emph{exactly}.
+  \item \textbf{Noise model.} We assume that the noise distribution is bounded for each system.
+        We include systems ranging from discrete to continuous additive noise variables,
+        and from internal, state-dependent noise to external additive noise.
+  \item \textbf{Dimension.} The linear families scale to arbitrary dimension,
+        allowing us to explore how the curse of dimensionality affects each method.
+\end{itemize}
+
+A second selection principle is the \textbf{certificate class} each system
+admits. Some systems have a known, analytic ground-truth certificate (a
+quadratic $x^\top P x$, an $L_1$ piecewise-linear function, or a physical
+potential), which lets us measure a verifier against a \emph{known-good} answer;
+others have no closed-form certificate and the certificate must be learned,
+exercising the full CEGIS loop.
+
+Each benchmark instantiates the discrete-time stochastic system
+\eqref{eq:stochastic-system}: its dynamics and noise model fix the transition
+kernel $P(\cdot \mid x)$ of Section~\ref{subsec:kernels}, and with it the
+one-step expectation inside the drift \eqref{eq:drift-def} that every verifier
+of Chapter~\ref{chap:verification} must bound. The selection axes are therefore
+precisely the levers that control how hard that expectation is to work with:
+the dynamics class governs whether the one-step map can be encoded symbolically, the
+noise model governs whether the expectation is an exact finite sum or must be
+soundly over-approximated, and the dimension scales both.
+
+\begin{table}[h]
+\centering
+\caption{The benchmark suite across the three selection axes.}
+\label{tab:bench-suite}
+\begin{tabular}{llll}
+\hline
+\textbf{System} & \textbf{Dynamics} & \textbf{Noise} & \textbf{Analytic Certificate} \\
+\hline
+$\mathrm{LinSwitch}$    & PWL / jump     & multiplicative (switch) & $L_1$ PWL (exact)  \\
+$\mathrm{LinStoch}$   & linear         & additive bounded        & quadratic $x^\top P x$ \\
+$\mathrm{DoubleWell}$        & polynomial     & additive bounded        & potential\\
+$\mathrm{Pendulum}$     & transcendental & additive triangular     & none \\
+\hline
+\end{tabular}
+\end{table}
+
+Phase portraits of all four 2D systems (the expected drift field with sample
+trajectories overlaid) are collected in Appendix~\ref{app:benchmark-portraits}.
+
+% =====================================================================
+\section{Linear Systems}
+\label{sec:bench-linear}
+
+% ---------------------------------------------------------------------
+\subsection{$\mathrm{LinSwitch}$}
+\label{sec:bench-switched}
+
+The randomly switched linear system is a canonical model in the stochastic
+stability literature, where at each step the dynamics matrix is selected by an
+i.i.d.\ Bernoulli switch:
+\[
+  x_{t+1} = A_{\sigma_t} x_t, \qquad \sigma_t \sim \text{Bernoulli}(p).
+\]
+We instantiate the randomly switched systems framework of Chatterjee \&
+Pal~\cite{chatterjee2009excursion}, who give conditions for almost-sure and
+$L_1$ stability of such systems. Our 2D instance uses a pair of matrices chosen
+to satisfy their contractivity conditions, being jointly contractive in the
+$L_1$ norm. Randomly switched systems model phenomena such as mode-switching
+control, packet loss over lossy channels, and Markov-jump linear dynamics. A
+phase portrait of the 2D instance is given in Figure~\ref{fig:phase-linswitch}.
+
+This is the \emph{simplest} stochastic obstruction in the suite and our
+soundness baseline. The switch is an \emph{internal, discrete} source of
+randomness, so it is encoded as a small set of exact finite branches rather than
+an over-approximated continuous noise box, leaving no relaxation anywhere in the
+pipeline. Every engine handles it, which makes it the control case against which
+we measure. The $L_1$-contractivity gives an \emph{exact piecewise-linear}
+ground-truth certificate $\cert(x) = |x_0| + |x_1|$, so the verification
+conditions hold with \emph{zero relaxation gap} in both SMT and MILP, a property
+no other system in the suite shares. The construction also generalises. A
+random-construction variant draws two matrices at a target spectral norm $<1$ in
+any dimension, for which $\cert(x) = \lVert x \rVert_2$ is valid, letting us
+probe dimensional scaling.
+
+
+% ---------------------------------------------------------------------
+\subsection{$\mathrm{LinStoch}$}
+\label{sec:bench-linstoch}
+
+The additive-noise linear system,
+\[
+  x_{t+1} = A x_t + w_t, \qquad w_t \sim \text{bounded zero-mean noise},
+\]
+with $A$ Schur-stable, is \emph{the} canonical 2D example of the
+stochastic-supermartingale literature~\cite{lechner2022stability, badings2025logRASM}. The deterministic part is
+contractive, so the only obstruction to stability is the noise floor.
+Figure~\ref{fig:phase-linstoch} shows the resulting inward spiral to the
+noise-floor neighbourhood.
+
+It is the additive-noise counterpart to the $\mathrm{LinSwitch}$ and isolates the
+\emph{sound treatment of continuous additive noise}. The noise distribution is
+over-approximated by a discretisation into cells so that the symbolic engines
+soundly bound the expected drift. It is also the natural scaling testbed, since
+$A$ can be constructed at any dimension and target spectral norm.
+
+It admits an \emph{analytic} quadratic ground-truth certificate $\cert(x) = x^\top P
+x$ with $P$ the solution of the discrete Lyapunov equation $A^\top P A - P = -Q$
+($Q = I$). The expected drift then has the closed form
+\[
+  \expe[\cert(x')] - \cert(x) = -x^\top Q x + \operatorname{tr}(P\Sigma_w),
+\]
+which is $\le 0$ exactly outside a ball of radius
+$r^\star = \sqrt{\operatorname{tr}(P\Sigma_w)/\lambda_{\min}(Q)}$. The
+equilibrium radius is therefore \emph{derived from the noise level}, so $\cert$ is a
+genuine supermartingale on $\text{domain}\setminus\text{equilibrium}$ (the
+textbook ``a.s.\ stable to a neighbourhood'').
+
+
+% ---------------------------------------------------------------------
+\subsection{$\mathrm{DoubleWell}$}
+\label{sec:bench-doublewell}
+
+A 2D stochastic gradient-flow system on a tilted double-well potential,
+\[
+  x_{k+1} = x_k - \eta\,\nabla U(x_k) + w_k, \qquad
+  U(x,y) = \tfrac14 (x^2 - 1)^2 + \tfrac12 y^2 - 0.3\,x .
+\]
+The double-well is the canonical model of metastability and noise-driven escape
+over a potential barrier, originating with Kramers~\cite{kramers1940brownian} and
+recurring throughout the Lyapunov-certificate literature as a bistable benchmark.
+Figure~\ref{fig:phase-doublewell} shows the flow around the off-origin attractor.
+
+It is the first \emph{nonlinear} (polynomial) system, while still
+admitting an exact symbolic encoding (the cubic gradient is encoded via an
+auxiliary squared variable in Z3/Gurobi). It tests whether a verifier handles a
+non-convex value landscape and a non-origin equilibrium. The potential is
+\emph{bistable}. The tilt $-0.3x$ breaks the symmetry so one well is the true
+attractor, but the second (metastable) well is a basin the certificate must rule
+out. The potential $U$ itself is the ground-truth Lyapunov function, giving an
+interpretable, physically meaningful $\cert$. The equilibrium is off-origin (at
+$\approx(1,0)$), unlike every other system.
+
+
+\subsection{$\mathrm{Pendulum}$}
+\label{sec:bench-pendulum-lqr}
+
+The inverted pendulum is the archetypal control benchmark. We take the FOSSIL
+\texttt{SineModel} pendulum with its verified LQR feedback gain $K = [[7.21,
+1.34],[1.34, 0.33]]$~\cite{edwards2024fossil2, abate2021fossil},
+folded into autonomous closed-loop dynamics, with additive triangular process
+noise:
+\[
+  \theta' = \theta + h(\dot\theta + u_1), \qquad
+  \dot\theta' = \dot\theta + h\!\left(u_2 + \tfrac{mgL\sin\theta - b\dot\theta}{mL^2}\right),
+  \quad u = -Kx .
+\]
+
+This is the first \emph{transcendental} system. The $\sin\theta$ term means the
+SMT and MILP engines cannot encode the map and must abstain, so only autoLiRPA
+(which relaxes $\sin$) and the sampling/MAB engines apply. It also represents
+dynamics found in the control literature, in which a controller returns actions
+to influence a trajectory. Here $u$ is the controller and represents a torque
+applied to the pendulum, and the equilibrium is its upright position, which would
+otherwise be unstable if the controller was poor. The closed loop is Schur-stable but \emph{non-normal}
+($\lVert A_d \rVert_2 > 1$, transient growth), so neither a box nor a ball is
+forward invariant, and the domain is the Lyapunov sublevel ellipsoid of the
+linearisation. Nonlinear dynamics and a controller add complexity beyond that of
+the previous systems. Figure~\ref{fig:phase-pendulum} shows the closed-loop
+spiral over the ellipsoidal domain.
+
+
+\newpage

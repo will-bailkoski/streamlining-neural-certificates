@@ -3,14 +3,23 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "masters-thesis"
-version = "0.1.0"
-description = "Masters thesis verification framework"
-requires-python = ">=3.8"
+name = "streamlining-neural-certificates"
+version = "1.0.0"
+description = "Code accompanying the MSc thesis 'Streamlining Neural Certificate Synthesis'"
+authors = [{ name = "William Bailkoski" }]
+requires-python = ">=3.11"
 dependencies = [
-    "numpy",
     "jax",
     "jaxlib",
+    "numpy",
+    "scipy",
+    "optax",
+    "matplotlib",
+    "torch",
+    "auto_LiRPA @ git+https://github.com/Verified-Intelligence/auto_LiRPA",
+    "z3-solver",
+    "gurobipy",
+    "cvxopt",
 ]
 
 [tool.setuptools.packages.find]

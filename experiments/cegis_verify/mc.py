@@ -23,7 +23,7 @@ from experiments.common.slurm import SLURM_CPU
 CAMPAIGN_TITLE = "cegis_verify_mc"
 
 ENGINE_HP = dict(
-    n_states=400_000,  # bigtest crank (4x): the certified ceiling shrinks only like
+    n_states=400_000,  # the certified ceiling shrinks only like
                        # n^{-1/(2(d+1))}, so this buys tightness, not miracles
     significance=0.05,
     range_bound=1.0,   # V in [0, 1] for bounded_pwl -> drift exceedance range
@@ -32,8 +32,7 @@ ENGINE_HP = dict(
 
 # The Lipschitz mean->max bound needs V bounded to [0, range_bound]; the shared
 # config uses the UNBOUNDED relu_pwl, so override to bounded_pwl (exactly as mab
-# does — the same soundness requirement). train_epsilon 2e-2 is trainable for
-# bounded_pwl 8,8 on these envs (2026-07 probes).
+# does — the same soundness requirement).
 CEGIS = {**config.CEGIS, "cert_structure": "bounded_pwl"}
 
 if __name__ == "__main__":

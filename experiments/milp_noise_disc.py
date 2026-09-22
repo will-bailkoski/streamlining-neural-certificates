@@ -24,7 +24,7 @@ hardening nd) and a high-nd inconclusive is provably a TIMEOUT.
     python -m experiments.milp_noise_disc               # tables + results.json
     python -m experiments.milp_noise_disc --plot        # + doc/Figures/milp_noise_disc.png
     python -m experiments.milp_noise_disc --dims 2 --seeds 0,1,2      # linstoch2D robustness
-    python -m experiments.milp_noise_disc --dims 2,3,4 --time-limit 600
+    python -m experiments.milp_noise_disc --dims 2,3,4 --time-limit 3600
 
 Cert generation is resume-friendly: the runner skips an already-completed (env,nd,seed),
 so re-running only repeats the (fast) nd sweep.
@@ -358,7 +358,7 @@ def main():
     p = argparse.ArgumentParser(description="MILP noise-disc sweet spot vs dimension")
     p.add_argument("--dims", default="2,3,4")
     p.add_argument("--seeds", default="0")
-    p.add_argument("--time-limit", type=float, default=600.0, help="sweep per-call cap")
+    p.add_argument("--time-limit", type=float, default=3600.0, help="sweep per-call cap")
     p.add_argument(
         "--harden-tl", type=float, default=300.0, help="cert-gen per-call cap"
     )

@@ -1,60 +1,6 @@
-"""
-utils.py  –  figure layout helpers
-===================================
-
-Design contract
----------------
-**One figure, one creation point.**
-
-``create_figure_layout`` is the *only* place a ``plt.Figure`` is created.
-Every downstream plotting function (``plot_heatmap``, ``plot_mesh_ucb``,
-``plot_mesh_lcb``, ``add_domain_border``, ``add_equilibrium``) accepts the
-``ax`` objects that come out of here and draws directly into them.
-No figure is ever created inside a plotter, so the "artist already belongs
-to another figure" error cannot occur.
-
-Typical usage
--------------
-::
-
-    from utils   import create_figure_layout, add_domain_border, add_equilibrium
-    from heatmaps import plot_heatmap
-    from tilings  import plot_mesh_ucb, plot_mesh_lcb
-
-    # 1. Create the layout – this is the ONLY place plt.Figure appears.
-    fig, [[ax_ucb], [ax_lcb, ax_heat]] = create_figure_layout(
-        [[None], [None, None]],
-        figsize=(14, 10),
-    )
-
-    # 2. Pass axes into plotters.
-    plot_mesh_ucb(mesh,  ax=ax_ucb)
-    plot_mesh_lcb(mesh,  ax=ax_lcb)
-    plot_heatmap(f, bounds, ax=ax_heat)
-    add_domain_border(env, ax=ax_ucb)
-    add_equilibrium(env,   ax=ax_ucb)
-
-    # 3. Show or save through the figure you already have.
-    fig.savefig("result.pdf")
-    plt.show()
-
-Object ownership summary
-------------------------
-=========================================  =========================================
-Object                                     Who creates it / who owns it
-=========================================  =========================================
-``plt.Figure``                             ``create_figure_layout`` – **only here**
-``matplotlib.axes.Axes``                   ``create_figure_layout`` – returned to caller
-artists (images, collections, patches …)   each ``plot_*`` / ``add_*`` function
-=========================================  =========================================
-
-``show_figure_layout`` has been **removed**.  It tried to transplant artists
-between figures, which matplotlib forbids.  Use ``create_figure_layout``
-before plotting instead.
-"""
+"""Drawing helpers shared by the figure scripts: domain borders and equilibrium sets."""
 
 import numpy as np
-import matplotlib.pyplot as plt
 import matplotlib.axes
 import matplotlib.patches as patches
 
@@ -75,64 +21,6 @@ def _add_ellipsoid(ellip, ax, *, edgecolor, linewidth=2, linestyle="-", alpha=1.
 
 # ---------------------------------------------------------------------------
 # Layout
-# ---------------------------------------------------------------------------
-
-
-def create_figure_layout(fig_grid_structure, figsize=(10, 8), bg_color="white"):
-    """
-    Create a figure with axes arranged in the requested layout.
-
-    Parameters
-    ----------
-    fig_grid_structure : list
-        Nested list defining the layout.  Each inner list is one row; each
-        element is one subplot (use ``None`` as a placeholder).
-
-        Examples::
-
-            [None, None]               # 1 row, 2 columns
-            [[None], [None, None]]     # 1 top  +  2 bottom  (triangle)
-            [[None, None], [None]]     # 2 top  +  1 bottom  (inverted triangle)
-
-    figsize : tuple[float, float]
-        Figure size in inches.
-    bg_color : str
-        Figure background colour.
-
-    Returns
-    -------
-    fig : plt.Figure
-        The figure.  Keep a reference to it; you need it to call
-        ``fig.savefig()``, ``fig.tight_layout()``, etc.
-    axes_grid : list[list[matplotlib.axes.Axes]]
-        Nested list of axes mirroring *fig_grid_structure*.
-        Unpack with the same shape you passed in::
-
-            fig, [[ax1], [ax2, ax3]] = create_figure_layout([[None], [None, None]])
-    """
-    # Normalise flat list → one row
-    if not isinstance(fig_grid_structure[0], (list, tuple)):
-        fig_grid_structure = [fig_grid_structure]
-
-    nrows = len(fig_grid_structure)
-    max_cols = max(len(row) for row in fig_grid_structure)
-
-    fig = plt.figure(figsize=figsize, facecolor=bg_color, constrained_layout=True)
-    gs = fig.add_gridspec(nrows, max_cols)
-
-    axes_grid = []
-    for r, row_spec in enumerate(fig_grid_structure):
-        ncols = len(row_spec)
-        start_col = (max_cols - ncols) // 2  # centre sparse rows
-        axes_row = [fig.add_subplot(gs[r, start_col + c]) for c in range(ncols)]
-        axes_grid.append(axes_row)
-
-    # fig.tight_layout()
-    return fig, axes_grid
-
-
-# ---------------------------------------------------------------------------
-# Annotation helpers  (draw into an existing ax – no figure creation)
 # ---------------------------------------------------------------------------
 
 

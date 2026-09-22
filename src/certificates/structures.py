@@ -128,10 +128,8 @@ def glorot_init(sizes, key=jrn.PRNGKey(0), input_center=None):
     into the first layer so it sees zero-mean inputs. Purely an INITIALISATION
     reparameterisation — the network class is unchanged, so every engine encodes
     the trained weights as-is. For origin-centered domains this IS plain glorot
-    (b1 = 0). Off-origin domains (thermal's absolute temperatures ~15-20 degC)
-    are untrainable without it: the mean input direction dominates every
-    gradient and Adam stalls at a high loss floor (measured 0.16 -> 0.005 on
-    thermal just from centering; 2026-07-03 probes).
+    (b1 = 0). Off-origin domains (e.g. doublewell, centred near x = 1.12) train
+    better with it: otherwise the mean input direction dominates every gradient.
     """
     keys = jrn.split(key, len(sizes) - 1)
     params = []

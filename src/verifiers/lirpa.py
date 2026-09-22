@@ -17,7 +17,7 @@ noise input (`noise_box is None`).
 
 Validity geometry (shared with the mab engine's sound checker): boxes provably
 OUTSIDE the domain or provably INSIDE the equilibrium are discarded — essential
-for the ellipsoid-domain envs (vanderpol, pendulum_lqr), whose bounding-box
+for the ellipsoid-domain env (pendulum_lqr), whose bounding-box
 tiling otherwise contains out-of-domain boxes where the drift really is
 positive, so the engine "proves" violations at points the certificate is not
 required to cover (this spuriously refuted every valid cert on those envs).

@@ -62,37 +62,29 @@ CEGIS = dict(
     epsilon=1e-3,
     max_rounds=300,
     sample_count=2000,
-    mc_samples=128,                # refuter-objective draws (matches config.CEGIS)
+    mc_samples=128,                # refuter-objective draws (unused when refuter='none')
     history_len=8,                 # counterexamples fed to the trainer per round
 )
 
-# Per-env training margin + width, from the local seed-training feasibility probe
-# (2026-07-03): train_epsilon must be a margin the trainer can actually reach
-# (seed loss == 0), else the loss is pinned > 0 and CEGIS can never terminate.
-#   * linear2D / vanderpol_mab / pendulum_lqr_mab: 4,4 reaches 2e-2 cleanly.
+# Per-env training margin + width: train_epsilon must be a margin the trainer can
+# actually reach (seed loss == 0), else the loss is pinned > 0 and CEGIS can never
+# terminate.
+#   * linear2D / pendulum_lqr: 4,4 reaches 2e-2 cleanly.
 #   * linstoch2D: 2e-2 is NOT reachable (points near the eq/noise-floor boundary
 #     cap the margin); 1e-2 trains to zero.
-#   * doublewell_mab: 4,4 is pinned at EVERY margin (the ~1% of seeds hugging
+#   * doublewell: 4,4 is pinned at EVERY margin (the ~1% of seeds hugging
 #     the eq boundary need a steeper V than 4 hidden units can shape — checked
 #     down to eps=2e-3 at 3x epochs); 8,8 trains 2e-2 to zero. The wider net's
 #     larger L_V costs boxes, but LipBaB keeps the bound tight.
 GROUPS = [
-    # per-env width/margin from the 2026-07-03 seed-training probes (loss == 0).
     # 3D/4D are DIMENSION-SCALING probes: MAB's box count grows ~(domain*L/M)^d,
     # so expect the 4D combos to exhaust budget — that boundary is the datapoint.
-    dict(env=["linear2D", "linear3D", "linstoch4D", "vanderpol_mab", "pendulum_lqr"],
+    dict(env=["linear2D", "linear3D", "linstoch4D", "pendulum_lqr"],
          hidden_layers="4,4", train_epsilon=2e-2),
     dict(env=["linstoch2D"],
          hidden_layers="4,4", train_epsilon=1e-2),
     dict(env=["doublewell", "linear4D", "linstoch3D"],
          hidden_layers="8,8", train_epsilon=2e-2),
-    # thermal: needs the resized eq (eq_margin=6.0 default fix — the old eq was
-    # smaller than the noise floor, no cert existed) + the centered init. 2e-3 is
-    # the largest margin that seed-trains to zero; the thin verified margin
-    # (2e-3 - 1e-3) makes this the most box-hungry combo — if anything times
-    # out on the cluster it will be this, and the other groups still deliver.
-    dict(env=["thermal"],
-         hidden_layers="8,8", train_epsilon=2e-3),
 ]
 
 if __name__ == "__main__":
