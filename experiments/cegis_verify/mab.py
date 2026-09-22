@@ -18,13 +18,12 @@ Design choices that make every combo terminate:
     box count ~ (domain*reward_lip/margin)^d, so a smaller reward_lip is directly
     fewer boxes. train_epsilon is per-env: it MUST be a margin the seed training
     actually reaches (loss == 0), or CEGIS can never terminate.
-  * MAB-FEASIBLE env variants (see src/benchmarks/utils.py): the nonlinear defaults
-    place the equilibrium / domain where the achievable margin -> 0. The *_mab
-    variants size the eq to cover the noise floor and shrink the domain so a bounded
-    cert holds a workable margin. 2D linear/stochastic-linear verify quickly; the
-    nonlinear ones are sound-but-slow (millions of live boxes -> the big budget + the
-    24h SLURM_MAB wall-clock). 3D/4D and the L_f=38 NN-controller pendulum are
-    deliberately excluded — MAB's box count is not confidently finite there.
+  * env geometry: doublewell and pendulum_lqr use equilibria sized to cover the
+    noise floor (see src/benchmarks/utils.py), so a bounded certificate holds a
+    workable margin. 2D linear/stochastic-linear verify quickly; the nonlinear
+    ones are sound-but-slow (millions of live boxes -> the big budget + the 24h
+    SLURM_MAB wall-clock). The 3D/4D groups probe dimension scaling: box count
+    grows ~(domain*L/M)^d, so those combos are expected to exhaust the budget.
 
 Speedups relied on (already in src/verifiers): the per-iteration sample+bound kernel
 is one jit-compiled vmap, the checker/split are pure NumPy, and k=1024 makes each
